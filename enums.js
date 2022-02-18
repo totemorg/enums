@@ -1412,7 +1412,7 @@ Fetch( ref, null, stat => {		// delete request
 			flags = {},
 			[refPath] = ref.parsePath(query,{},flags,{}),
 
-			url = (sites[path] || "").parse$(query) || refPath.tag("?",query),
+			url = (sites[refPath] || "").parse$(query) || refPath.tag("?",query),
 			  
 			opts = new URL(url), 
 			crud = {
@@ -2478,10 +2478,10 @@ async function LexisNexisTest(N,endpt,R,cb) {
 		});
 }
 
-switch (process.argv[2].toUpperCase()) {	//< unit testers
-	case "EHELP":
+switch (process.argv[2]) {	//< unit testers
 	case "?":
-		Trace("unit test with 'node enum.js [$ || LNn || Xn ...]'");
+	case "E?":
+		Trace("node enum.js [E$ || En || ELNn || EXn ...]");
 		Trace("logins", {
 			mysql: mysqlLogin,
 			neo4j: neo4jLogin,
@@ -2497,7 +2497,7 @@ switch (process.argv[2].toUpperCase()) {	//< unit testers
 
 		break;
 		
-	case "EDEBUG":
+	case "E$":
 		Debug();
 		break;
 
