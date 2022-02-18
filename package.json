@@ -1,0 +1,25 @@
+{
+  "name": "enums",
+  "version": "1.9.0",
+  "description": "Basic enumerators",
+  "main": "enums.js",
+  "scripts": {
+    "verminor": "npm version minor -f",
+    "vermajor": "npm version major -f",
+    "test": "node enums.js ",
+    "redoc": "jsdoc2md --template README.hbs --files enums.js >README.md; git commit -am 'redoc'; git  push agent master"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:totemstan/enums.git"
+  },
+  "author": "ACME Software Disposal Service",
+  "license": "ISC",
+  "dependencies": {
+    "imap": "^0.8.19",
+    "mysql": "^2.18.1",
+    "neo4j-driver": "^4.4.2",
+    "nodemailer": "^6.7.2",
+    "nodemailer-smtp-transport": "^2.7.4"
+  }
+}
