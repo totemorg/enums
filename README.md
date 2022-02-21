@@ -90,13 +90,12 @@ documented in accordance with [jsdoc](https://jsdoc.app/).
     * [.Trace()](#module_ENUMS.Trace)
     * [.config(opts)](#module_ENUMS.config)
     * [.typeOf()](#module_ENUMS.typeOf)
-    * [.getURL()](#module_ENUMS.getURL)
     * [.getList()](#module_ENUMS.getList)
     * [.Copy(src, tar, deep)](#module_ENUMS.Copy) ⇒ <code>Object</code>
     * [.Each(A, cb)](#module_ENUMS.Each)
     * [.Stream(src, cb()](#module_ENUMS.Stream)
     * [.Regulate(opts, taskcb(recs,ctx,res), feedcb(err,step))](#module_ENUMS.Regulate) ⇒ <code>Clock</code>
-    * [.Fetch(ref, data, [cb])](#module_ENUMS.Fetch)
+    * [.Fetch(ref, cb, [cb])](#module_ENUMS.Fetch)
 
 <a name="module_ENUMS.mysqlOpts"></a>
 
@@ -129,18 +128,46 @@ documented in accordance with [jsdoc](https://jsdoc.app/).
 <a name="module_ENUMS.sites"></a>
 
 ### ENUMS.sites
+Fetch quick SITEREFs
+
+	https://www.programmableweb.com/search/military
+
+	ACLED
+	https://www.programmableweb.com/api/acled-rest-api-v25
+	ACCT teliy40602@plexfirm.com / ACLEDsnivel1
+	API https://developer.acleddata.com/rehd/cms/views/acled_api/documents/API-User-Guide.pdf
+	SITE https://developer.acleddata.com/
+	The Armed Conflict Location & Event Data Project (ACLED) is a real-time data and and crisis analysis and mapping project on political violence and protest across the world. ACLED's mission is to produce dis-aggregated, locally informed data and analysis globally in real time. An ACLED REST API enables users to retrieve data about actors, actor type, country, region and get data in JSON, XML, CSV or text. Filter data by date, area, pagination, etc.
+
+	Animetrics FIMS
+	https://www.programmableweb.com/api/animetrics-fims-cloud-rest-api
+	http://animetrics.com/fims-cloud
+	Aimed at the law enforcement, security and military intelligence industries, Animetrics' FaceR Identity Management Solution (FIMS) allows organizations to bring mobile security and video surveillance facial-biometrics applications into the field for use in real time. FIMS Cloud is used to centralize and access a user's cloud based photographic stores using facial recognition. FIMS Cloud organizes, searches and centralizes access to photographic stores using 1:many web service based verification engine. Access to the service is provided via a RESTful API. Public documentation is not available.
+
+	Navlost WXT Weather Tesseract
+	https://www.programmableweb.com/api/navlost-wxt-weather-tesseract
+	The WXT Weather Service provides atmospheric weather information through a REST architecture, HTTP requests, and JSON formats. It integrates METAR/TAF information, sun, and moon calculations, targeting aviation and energy applications. Advanced features include: -Upper atmosphere information (e.g., research, aviation, rocketry, military) -Automated, push-type notification of arbitrary weather-related events (alert service) -Calculation of arbitrary results derived from weather forecast information via a server-side scripting language. The default response type is application/json, although other formats may be supported. At the present time, there is partial support for comma-separated value (CSV) responses.
+	https://wxt.navlost.eu/api/v1/
+	https://wxt.navlost.eu/doc/api/
+
 **Kind**: static property of [<code>ENUMS</code>](#module_ENUMS)  
 <a name="module_ENUMS.maxFiles"></a>
 
 ### ENUMS.maxFiles
+Max files to Fetch when indexing a folder
+
 **Kind**: static property of [<code>ENUMS</code>](#module_ENUMS)  
 <a name="module_ENUMS.maxRetry"></a>
 
 ### ENUMS.maxRetry
+Fetch wget/curl maxRetry
+
 **Kind**: static property of [<code>ENUMS</code>](#module_ENUMS)  
 <a name="module_ENUMS.certs"></a>
 
 ### ENUMS.certs
+Legacy Fetching certs
+
 **Kind**: static property of [<code>ENUMS</code>](#module_ENUMS)  
 <a name="module_ENUMS.Debug"></a>
 
@@ -172,10 +199,6 @@ Test an object x:
 	isEmpty(x), isNumber(x), isKeyed(x), isBoolean(x), isBuffer(x)
 	isError(x)
 
-**Kind**: static method of [<code>ENUMS</code>](#module_ENUMS)  
-<a name="module_ENUMS.getURL"></a>
-
-### ENUMS.getURL()
 **Kind**: static method of [<code>ENUMS</code>](#module_ENUMS)  
 <a name="module_ENUMS.getList"></a>
 
@@ -322,24 +345,24 @@ never signed-off before the proposal's start time, the task will be killed.
 
 <a name="module_ENUMS.Fetch"></a>
 
-### ENUMS.Fetch(ref, data, [cb])
-Fetches text content from a `ref` url of the form
+### ENUMS.Fetch(ref, cb, [cb])
+GET (PUT || POST || DELETE) information from/to a `ref` url
 
 	PROTOCOL://HOST/FILE ? QUERY & FLAGS
 	SITEREF
 
-using a PUT || POST || DELETE || GET according to the specified `data`
-Array || Object || null || Function.  Valid PROTOCOLs include
+given corresponding `cb` callback function (or `data` Array || Object || null) 
+and the desired PROTOCOL
 
-	PROTOCOL		uses
+	PROTOCOL		For
 	==============================================
 	http(s) 		http (https) protocol
-	curl(s) 		curl (presents certs/fetch.pfx certificate to endpoint)
-	wget(s)			wget (presents certs/fetch.pfx certificate to endpoint)
-	mask 			rotated proxies
-	file			file system
-	book			selected notebook record
-	lexnex 			Lexis-Nexis oauth access to pull docments
+	curl(s) 		curl (curls uses certs/fetch.pfx to authenticate)
+	wget(s)			wget (wgets uses certs/fetch.pfx to authenticate)
+	mask 			http access via rotated proxies
+	file			file or folder
+	notebook		selected notebook record
+	lexnex 			Lexis-Nexis oauth access to documents
 
 All "${key}" in `ref` are replaced by QUERY[key].  When a FILE is "/"-terminated, a 
 folder index is returned.  Use the FLAGS
@@ -352,8 +375,11 @@ folder index is returned.  Use the FLAGS
 	_on		= NUM  
 	_off	= NUM  						
 	_util	= NUM  
+	_name	= "job name"
+	_client = "job owner"
 
-to place the fetch in a job queue with callbacks to `cb`.  Use the FLAGS
+to regulate the fetch in a job queue with periodic callbacks to `cb`.  Use 
+the FLAGS
 
 	_batch=N
 	_limit=N 
@@ -366,8 +392,8 @@ to read a csv-file and feed record batches to the `cb` callback.
 | Param | Type | Description |
 | --- | --- | --- |
 | ref | <code>String</code> | source URL |
-| data | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | fetching data or callback |
-| [cb] | <code>TSR</code> | callback when specified data is not a Function |
+| cb | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | callback or data |
+| [cb] | <code>function</code> | optional callback when first cb is data |
 
 **Example**  
 ```js
@@ -403,7 +429,7 @@ Fetch( ref, null, stat => {		// delete request
 
 ### Array~serialize(fetched, cb)
 Serialize an Array to the callback cb(rec,info) or cb(null,stack) at end given 
-	a sync/async fetcher( rec, res ).
+a sync/async fetcher( rec, res ).
 
 **Kind**: inner method of [<code>Array</code>](#ENUMS.module_Array)  
 
@@ -436,15 +462,15 @@ Serialize an Array to the callback cb(rec,info) or cb(null,stack) at end given
 
 ### Array~get(index, ctx) ⇒ <code>Object</code>
 Index an array using a indexor:
-	
-		string of the form "to=from & to=eval & to & ... & !where=eval"
-		hash of the form {to: from, ...}
-		callback of the form (idx,array) => { ... }
-		
-	The "!where" clause returns only records having a nonzero eval.
+
+	string of the form "to=from & to=eval & to & ... & !where=eval"
+	hash of the form {to: from, ...}
+	callback of the form (idx,array) => { ... }
+
+The "!where" clause returns only records having a nonzero eval.
 
 **Kind**: inner method of [<code>Array</code>](#ENUMS.module_Array)  
-**Returns**: <code>Object</code> - Aggregated data  
+**Returns**: <code>Object</code> - Indexed data  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -454,63 +480,47 @@ Index an array using a indexor:
 **Example**  
 ```js
 [{x:1,y:2},{x:10,y:20}].get("u=x+1&v=sin(y)&!where=x>5",Math)
-	{ u: [ 11 ], v: [ 0.9129452507276277 ] }
-
-	
+{ u: [ 11 ], v: [ 0.9129452507276277 ] }
 ```
 **Example**  
 ```js
 [{x:1,y:2},{x:10,y:20}].get("x")
-	{ x: [ 1, 10 ] }
-
-	
+{ x: [ 1, 10 ] }
 ```
 **Example**  
 ```js
 [{x:1,y:2},{x:10,y:20}].get("x&mydata=y")
-	{ mydata: [ 2, 20 ], x: [ 1, 10 ] }
-
-	
+{ mydata: [ 2, 20 ], x: [ 1, 10 ] }
 ```
 **Example**  
 ```js
 [{x:1,y:2},{x:10,y:20}].get("mydata=[x,y]")
-	{ mydata: [ [ 1, 2 ], [ 10, 20 ] ] }
-
-	
+{ mydata: [ [ 1, 2 ], [ 10, 20 ] ] }
 ```
 **Example**  
 ```js
 [{x:1,y:2},{x:10,y:20}].get("mydata=x+1")
-	{ mydata: [ 2, 11 ] }
-
-	
+{ mydata: [ 2, 11 ] }
 ```
 **Example**  
 ```js
 [{x:1,y:2},{x:10,y:20}].get("",{"!all":1})
-	{ x: [ 1, 10 ], y: [ 2, 20 ] }
-
-	
+{ x: [ 1, 10 ], y: [ 2, 20 ] }
 ```
 **Example**  
 ```js
 [{x:1,y:2},{x:10,y:20}].get("")
-	[ { x: 1, y: 2 }, { x: 10, y: 20 } ]
-
-	
+[ { x: 1, y: 2 }, { x: 10, y: 20 } ]
 ```
 **Example**  
 ```js
 [{x:1,y:2},{x:10,y:20}].get("u")
-	{ u: [ undefined, undefined ] }
-
-	
+{ u: [ undefined, undefined ] }
 ```
 **Example**  
 ```js
 [[1,2,3],[10,20,30]].get("1&0")
-	{ '0': [ 1, 10 ], '1': [ 2, 20 ] }	
+{ '0': [ 1, 10 ], '1': [ 2, 20 ] }	
 ```
 <a name="ENUMS.module_String"></a>
 
@@ -600,7 +610,7 @@ as directed by the PARM = ASKEY := REL || REL || _FLAG = VALUE where
 REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type].
 
 **Kind**: inner method of [<code>String</code>](#ENUMS.module_String)  
-**Returns**: <code>Array</code> - [path,table,type,area,search]  
+**Returns**: <code>Array</code> - [path,table,type,area,url]  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -627,15 +637,16 @@ with cb(null) at end.
 <a name="ENUMS.module_String..parseFile"></a>
 
 ### String~parseFile(path, opts, cb)
-Parse a csv/txt/json stream at the specified path:
+Parse a csv/txt/json stream at the specified path dependings on if the
+keys is
 
-	when keys = [], csv record keys are determined by the first header record; 
-	when keys = [ 'key', 'key', ...], then csv header keys were preset; 
-	when keys = null, raw text records are returned; 
-	when keys = parse(buf) function, then this function (e.g. a JSON parse) is used to parse records.  
+	[] then record keys are determined by the first header record; 
+	[ 'key', 'key', ...] then header keys were preset; 
+	null then raw text records are returned; 
+	function then use to parse records.  
 
-The file is chunked using the (newline,limit) chinkFile parameters.  Callsback cb(record) for 
-each record with cb(null) at end.
+The file is chunked using the (newline,limit) chinkFile parameters.  
+Callsback cb(record) for each record with cb(null) at end.
 
 **Kind**: inner method of [<code>String</code>](#ENUMS.module_String)  
 
@@ -693,6 +704,8 @@ produces:
 <a name="ENUMS.module_String..get"></a>
 
 ### String~get()
+Fetch using supplied url.
+
 **Kind**: inner method of [<code>String</code>](#ENUMS.module_String)  
 <a name="ENUMS.module_Clock"></a>
 
@@ -724,20 +737,20 @@ start date.  See the clock tick method for more information.
 ### Clock~tick(cb) ⇒ <code>Date</code>
 Return the wait time to next event, with callback(wait,next) when at snapshot events.
 
-	Example below for ON = 4 and OFF = 3 steps of length vlock.every.
+Example below for ON = 4 and OFF = 3 steps of length vlock.every.
 
-	Here S|B|* indicates the end of snapshot|batch|start events.  The clock starts on epoch = OFF 
-	with a wait = 0.  The clock's host has 1 step to complete its batch tasks, and OFF steps to 
-	complete its snapshot tasks.  Here, the work CYCLE = ON+OFF with a utilization = ON/CYCLE.  
-	Use OFF = 0 to create a continious process.  
+Here S|B|* indicates the end of snapshot|batch|start events.  The clock starts on epoch = OFF 
+with a wait = 0.  The clock's host has 1 step to complete its batch tasks, and OFF steps to 
+complete its snapshot tasks.  Here, the work CYCLE = ON+OFF with a utilization = ON/CYCLE.  
+Use OFF = 0 to create a continious process.  
 
-			S			*	B	B	B	S			*	B	B	B
-			|			|	|	|	|	|			|	|	|	|		...
-			|			|	|	|	|	|			|	|	|	|		
-			x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x
-	epoch	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17
+		S			*	B	B	B	S			*	B	B	B
+		|			|	|	|	|	|			|	|	|	|		...
+		|			|	|	|	|	|			|	|	|	|		
+		x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x
+epoch	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17
 
-			|<-- OFF -->|<---- ON ----->|
+		|<-- OFF -->|<---- ON ----->|
 
 **Kind**: inner method of [<code>Clock</code>](#ENUMS.module_Clock)  
 **Returns**: <code>Date</code> - Wait time  

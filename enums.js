@@ -199,8 +199,7 @@ Test an object x:
 		return true;
 	},
 	
-/**
-*/
+	/*
 	getURL: function (url, cb) {
 		Fetch( url, buf => {
 			try {
@@ -212,10 +211,11 @@ Test an object x:
 			}
 		});
 	},
+	*/
 		
 /**
 */
-	getList: function (recs, index, ctx) {
+	getList: function (recs, index, stash) {
 		if (index)
 			switch (index.constructor.name) {
 				case "String":
@@ -227,7 +227,7 @@ Test an object x:
 							[lhs,rhs] = opt.split("=");
 						opts[lhs] = rhs || "";
 					});
-					return getList(recs, opts, ctx );
+					return getList(recs, opts, stash );
 
 				case "Function":
 					for ( var i=0; i<recs.length; i++) index(i,recs);
@@ -236,7 +236,6 @@ Test an object x:
 				case "Object":
 					const
 						res = {},
-						stash = VM.createContext( ctx || {}),
 						where = index["!where"],
 						tests = [];
 
@@ -472,7 +471,9 @@ Serialize a string:
 
 	//defHost: ENV.SERVICE_MASTER_URL || "http://UNDEFINED:UNDEFINED",
 	
-	/*
+/**
+Fetch quick SITEREFs
+
 	https://www.programmableweb.com/search/military
 
 	ACLED
@@ -492,23 +493,24 @@ Serialize a string:
 	The WXT Weather Service provides atmospheric weather information through a REST architecture, HTTP requests, and JSON formats. It integrates METAR/TAF information, sun, and moon calculations, targeting aviation and energy applications. Advanced features include: -Upper atmosphere information (e.g., research, aviation, rocketry, military) -Automated, push-type notification of arbitrary weather-related events (alert service) -Calculation of arbitrary results derived from weather forecast information via a server-side scripting language. The default response type is application/json, although other formats may be supported. At the present time, there is partial support for comma-separated value (CSV) responses.
 	https://wxt.navlost.eu/api/v1/
 	https://wxt.navlost.eu/doc/api/
-	*/
-/**
 */
-	sites: {			// fetch *SITEs
+	sites: {
 		"*acled": "https://api.acleddata.com/{data}/{command}",
 		"*navlost": "https://wxt.navlost.eu/api/v1/${find}",
 		"*nmi": "http://api.met.no/weatherapi/?opt=${x}"
 	},
 /**
+Max files to Fetch when indexing a folder
 */
-	maxFiles: 1000,		//< max files to fetch when indexing
+	maxFiles: 1000,
 /**
+Fetch wget/curl maxRetry	
 */
-	maxRetry: 5,		// fetch wget/curl maxRetry	
+	maxRetry: 5,		
 /**
+Legacy Fetching certs
 */
-	certs: { 			// data fetching certs
+	certs: { 			
 		//pfx: FS.readFileSync(`./certs/fetch.pfx`),
 		//key: FS.readFileSync(`./certs/fetch.key`),
 		//crt: FS.readFileSync(`./certs/fetch.crt`),
@@ -685,7 +687,7 @@ never signed-off before the proposal's start time, the task will be killed.
 				Batch: batch || 0,										// [recs]
 				Limit: limit || 0,										// [recs]
 
-				// tasks queuing info
+				// job regulation
 				
 				Name: name || "noname",
 				Client: client || "system"
@@ -706,11 +708,20 @@ never signed-off before the proposal's start time, the task will be killed.
 				Name: Name,
 
 				// job qos
-				QoS: 0,
+				QoS: Watch,
 				Priority: 0,
 
 				// others 
-				Notes: "",
+				Notes: [
+					"Notebook".link( `/${Name}.run` ), 
+					"Client: "+Client.link( `mailto:${client}?subject=hello` ),
+					// ((profile.Credit>0) ? "funded" : "unfunded").tag( url ),
+					"RTP".link( `/rtpsqd.view?task=${Name}` ),
+					"PMR".link( `/briefs.view?options=${Name}` ),
+					//"Source".link(pipePath),
+					"Metrics".link( `/plot.view?w=800&h=600&x=Save_baseline$t&y=Save_baseline$y&src=/${Name}` )
+				].join(" || "),
+
 				Arrived	: new Date(),
 				Departed: null,
 				Classif : "(U)",
@@ -984,23 +995,23 @@ never signed-off before the proposal's start time, the task will be killed.
 	},
 		
 /**
-Fetches text content from a `ref` url of the form
+GET (PUT || POST || DELETE) information from/to a `ref` url
 
 	PROTOCOL://HOST/FILE ? QUERY & FLAGS
 	SITEREF
 
-using a PUT || POST || DELETE || GET according to the specified `data`
-Array || Object || null || Function.  Valid PROTOCOLs include
+given corresponding `cb` callback function (or `data` Array || Object || null) 
+and the desired PROTOCOL
 
-	PROTOCOL		uses
+	PROTOCOL		For
 	==============================================
 	http(s) 		http (https) protocol
-	curl(s) 		curl (presents certs/fetch.pfx certificate to endpoint)
-	wget(s)			wget (presents certs/fetch.pfx certificate to endpoint)
-	mask 			rotated proxies
-	file			file system
-	book			selected notebook record
-	lexnex 			Lexis-Nexis oauth access to pull docments
+	curl(s) 		curl (curls uses certs/fetch.pfx to authenticate)
+	wget(s)			wget (wgets uses certs/fetch.pfx to authenticate)
+	mask 			http access via rotated proxies
+	file			file or folder
+	notebook		selected notebook record
+	lexnex 			Lexis-Nexis oauth access to documents
 
 All "${key}" in `ref` are replaced by QUERY[key].  When a FILE is "/"-terminated, a 
 folder index is returned.  Use the FLAGS
@@ -1013,18 +1024,21 @@ folder index is returned.  Use the FLAGS
 	_on		= NUM  
 	_off	= NUM  						
 	_util	= NUM  
+	_name	= "job name"
+	_client = "job owner"
 
-to place the fetch in a job queue with callbacks to `cb`.  Use the FLAGS
+to regulate the fetch in a job queue with periodic callbacks to `cb`.  Use 
+the FLAGS
 
 	_batch=N
 	_limit=N 
 	_rekey=from:to,... 
 
-to read a csv-file and feed record batches to the `cb` callback.	
+to read a csv-file and feed record batches to the `cb` callback. 
 
 @param {String} ref source URL
-@param {string | array | function | null} data fetching data or callback 
-@param {TSR} [cb] callback when specified data is not a Function
+@param {string | array | function | null} cb callback or data 
+@param {function} [cb] optional callback when first cb is data
 
 @example
 Fetch( ref, text => {			// get request
@@ -1137,44 +1151,7 @@ Fetch( ref, null, stat => {		// delete request
 				sql.query("UPDATE openv.proxies SET hits=hits+1, sAbort = sAbort+1 WHERE ?", id);
 			});
 		}
-
-		function getFile(path, cb) {
-			const
-				src = "."+path;
-
-			if ( path.endsWith("/") )  // index requested folder
-				try {
-					const 
-						files = [];
-
-					//Trace("index", src;
-					FS.readdirSync(src).forEach( file => {
-						var
-							ignore = file.startsWith(".") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
-
-						if ( !ignore && files.length < maxFiles ) 
-							files.push( (file.indexOf(".")>=0) ? file : file+"/" );
-					});
-
-					cb( files );
-				}
-
-				catch (err) {
-					//Trace("fetch index error", err);
-					cb( [] );
-				}
-
-			else 	// requesting static file
-				try {		// these files are static so we never cache them
-					FS.readFile(src, (err,buf) => res( err ? "" : buf ) );
-				}
-
-				catch (err) {
-					Trace(err);
-					cb( null );
-				};
-		}	
-
+		
 		function oauthRequest(opts, {grant, token ,doc}, res) {
 			
 			token.method = "POST";
@@ -1251,7 +1228,7 @@ Fetch( ref, null, stat => {		// delete request
 			});
 		}
 		
-		function fetch() {
+		function fetch(res) {
 			switch ( opts.protocol ) {
 				case "curl:": 
 					CP.exec( `curl --retry ${maxRetry} ` + path.replace(opts.protocol, "http:"), (err,out) => {
@@ -1334,13 +1311,13 @@ Fetch( ref, null, stat => {		// delete request
 							} );
 						*/
 					opts.rejectUnauthorized = false;
-					request(HTTPS, opts, data, cb);
+					request(HTTPS, opts, data, res);
 					break;
 
 				case "http:":
 					//Trace("http", opts);
 
-					request(HTTP, opts, data, cb);
+					request(HTTP, opts, data, res);
 					break;
 
 				case "mask:":
@@ -1360,8 +1337,8 @@ Fetch( ref, null, stat => {		// delete request
 					});
 					break;
 
-				case "nb:":
 				case "book:":
+				case "notebook:":
 					const
 						book = opts.host,
 						name = opts.pathname.substr(1);
@@ -1373,13 +1350,46 @@ Fetch( ref, null, stat => {		// delete request
 
 							[ book, name ], 
 
-							(err,recs) => cb( err ? "" : JSON.stringify(recs) ) );
+							(err,recs) => res( err ? "" : JSON.stringify(recs) ) );
 					});
 					break;
 
 				case "file:":	// requesting file or folder index
 					//Trace("index file", [path], opts);
-					getFile( opts.pathname , res );  
+					const src = "."+Path, files = [];
+					
+					switch (Type) {
+						case "/":
+							try {
+								FS.readdirSync(src).forEach( file => {
+									var
+										ignore = file.startsWith(".") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
+
+									if ( !ignore && files.length < maxFiles ) 
+										files.push( (file.indexOf(".")>=0) ? file : file+"/" );
+								});
+								res( files );
+							}
+
+							catch (err) {
+								//Trace("fetch index error", err);
+								res( [] );
+							}
+							break;
+							
+						case "json":
+							try {
+								FS.readFile(src, "utf-8", (err,buf) => res( err ? null : JSON.parse(buf) ) );
+							}
+							
+							catch (err) {
+								res( null );
+							}
+							break;
+						
+						default:
+							FS.readFile(src, "utf-8", (err,buf) => res( err ? null : buf ) );
+					}
 					break;
 
 				case "lex:": 	// lexis-nexis search only
@@ -1410,11 +1420,7 @@ Fetch( ref, null, stat => {		// delete request
 			
 			query = {},
 			flags = {},
-			[refPath] = ref.parsePath(query,{},flags,{}),
-
-			url = (sites[refPath] || "").parse$(query) || refPath.tag("?",query),
-			  
-			opts = new URL(url), 
+			[Path,Name,Type,Area,opts] = (sites[ref] || ref).parsePath(query,{},flags,{}),
 			crud = {
 				"Function": "GET",
 				"Array": "PUT",
@@ -1423,14 +1429,18 @@ Fetch( ref, null, stat => {		// delete request
 			},
 
 			// for wget-curl
-			cert = certs.fetch,
-			wget = url.split("////"),
+			cert = certs.fetch;
+		
+		//Log([Path,Name,Type,Area], opts);
+		
+		const
+			wget = opts.pathname.split("////"),
 			wurl = wget[0],
 			wout = wget[1] || "./temps/wget.jpg",
 
 			// response callback
-			res = cb || data || (res => {}),
-			method = crud[ data ? typeOf(data) : "Null" ] ;
+			res = cb || data || console.log,
+			method = opts.method = crud[ data ? typeOf(data) : "Null" ] ;
 
 		/*
 		// opts.cipher = " ... "
@@ -1445,18 +1455,25 @@ Fetch( ref, null, stat => {		// delete request
 			opts.method = "POST";
 		}*/
 
-		//Trace("FETCH",ref, "=>", url, flags);
+		//Trace("FETCH",ref, "=>", opts, query, flags);
 
-		opts.method = method;
+		/*opts.pathname = 
+			opts = 
+				ref => ref.parse$(query) || ref.tag("?",query)
+			),
 
+			url = (sites ? sites[ref] || ""),
+			  
+			opts = new URL(url), */
+		
 		if ( flags.every )
-			Regulate(flags, (recs,ctx,res) => {
-				Log("fetch ctx", ctx);
-				fetch();
+			Regulate(flags, (recs,ctx,cb) => {
+				//Log("fetch ctx", ctx);
+				fetch(res);
 			});
 		
 		else
-			fetch();
+			fetch(res);
 	}
 
 };
@@ -1472,12 +1489,12 @@ Copy({
 		});
 	},
 	
-	/**
-	Serialize an Array to the callback cb(rec,info) or cb(null,stack) at end given 
-	a sync/async fetcher( rec, res ).
-	@param {function} fetched Callback to fetch the data sent to the cb
-	@param {function} cb Callback to process the fetched data.	
-	*/
+/**
+Serialize an Array to the callback cb(rec,info) or cb(null,stack) at end given 
+a sync/async fetcher( rec, res ).
+@param {function} fetched Callback to fetch the data sent to the cb
+@param {function} cb Callback to process the fetched data.	
+*/
 	serialize: function (fetcher, cb) {
 		Stream( this, {}, (rec, key, res) => {
 			if ( res )
@@ -1491,10 +1508,10 @@ Copy({
 		});
 	},
 
-	/**
-	@param {Function} cb Callback(arg,idx)
-	@returns this
-	*/
+/**
+@param {Function} cb Callback(arg,idx)
+@returns this
+*/
 	any: function ( cb ) {
 		var test = false;
 		if ( cb )
@@ -1516,10 +1533,10 @@ Copy({
 		return test;
 	},
 	
-	/**
-	@param {Function} cb Callback(arg,idx)
-	@returns this
-	*/
+/**
+@param {Function} cb Callback(arg,idx)
+@returns this
+*/
 	all: function ( cb ) {
 		var test = true;
 		if ( cb )
@@ -1541,63 +1558,63 @@ Copy({
 		return test;
 	},
 	
-	/**
-	Index an array using a indexor:
-	
-		string of the form "to=from & to=eval & to & ... & !where=eval"
-		hash of the form {to: from, ...}
-		callback of the form (idx,array) => { ... }
-		
-	The "!where" clause returns only records having a nonzero eval. 
+/**
+Index an array using a indexor:
 
-	@param {String|Object|Function} index Indexer 
-	@param {Object} ctx Context of functions etc 
-	@returns {Object} Aggregated data
+	string of the form "to=from & to=eval & to & ... & !where=eval"
+	hash of the form {to: from, ...}
+	callback of the form (idx,array) => { ... }
 
-	@example
-	[{x:1,y:2},{x:10,y:20}].get("u=x+1&v=sin(y)&!where=x>5",Math)
-	{ u: [ 11 ], v: [ 0.9129452507276277 ] }
+The "!where" clause returns only records having a nonzero eval. 
 
-	@example
-	[{x:1,y:2},{x:10,y:20}].get("x")
-	{ x: [ 1, 10 ] }
+@param {String|Object|Function} index Indexer 
+@param {Object} ctx Context of functions etc 
+@returns {Object} Indexed data
 
-	@example
-	[{x:1,y:2},{x:10,y:20}].get("x&mydata=y")
-	{ mydata: [ 2, 20 ], x: [ 1, 10 ] }
+@example
+[{x:1,y:2},{x:10,y:20}].get("u=x+1&v=sin(y)&!where=x>5",Math)
+{ u: [ 11 ], v: [ 0.9129452507276277 ] }
 
-	@example
-	[{x:1,y:2},{x:10,y:20}].get("mydata=[x,y]")
-	{ mydata: [ [ 1, 2 ], [ 10, 20 ] ] }
+@example
+[{x:1,y:2},{x:10,y:20}].get("x")
+{ x: [ 1, 10 ] }
 
-	@example
-	[{x:1,y:2},{x:10,y:20}].get("mydata=x+1")
-	{ mydata: [ 2, 11 ] }
+@example
+[{x:1,y:2},{x:10,y:20}].get("x&mydata=y")
+{ mydata: [ 2, 20 ], x: [ 1, 10 ] }
 
-	@example
-	[{x:1,y:2},{x:10,y:20}].get("",{"!all":1})
-	{ x: [ 1, 10 ], y: [ 2, 20 ] }
+@example
+[{x:1,y:2},{x:10,y:20}].get("mydata=[x,y]")
+{ mydata: [ [ 1, 2 ], [ 10, 20 ] ] }
 
-	@example
-	[{x:1,y:2},{x:10,y:20}].get("")
-	[ { x: 1, y: 2 }, { x: 10, y: 20 } ]
+@example
+[{x:1,y:2},{x:10,y:20}].get("mydata=x+1")
+{ mydata: [ 2, 11 ] }
 
-	@example
-	[{x:1,y:2},{x:10,y:20}].get("u")
-	{ u: [ undefined, undefined ] }
+@example
+[{x:1,y:2},{x:10,y:20}].get("",{"!all":1})
+{ x: [ 1, 10 ], y: [ 2, 20 ] }
 
-	@example
-	[[1,2,3],[10,20,30]].get("1&0")
-	{ '0': [ 1, 10 ], '1': [ 2, 20 ] }	
-	*/
+@example
+[{x:1,y:2},{x:10,y:20}].get("")
+[ { x: 1, y: 2 }, { x: 10, y: 20 } ]
+
+@example
+[{x:1,y:2},{x:10,y:20}].get("u")
+{ u: [ undefined, undefined ] }
+
+@example
+[[1,2,3],[10,20,30]].get("1&0")
+{ '0': [ 1, 10 ], '1': [ 2, 20 ] }	
+*/
 	get: function (index,ctx) {
-		return ENUMS.getList(this, index, ctx)
+		return getList(this, index, VM.createContext( ctx || {}) )
 	},
 	
-	/*
-	@param {Function} cb Callback(arg,idx)
-	@returns this
-	*/
+/*
+@param {Function} cb Callback(arg,idx)
+@returns this
+*/
 	/*
 	put: function ( cb ) {
 		const tar = this;
@@ -1605,10 +1622,10 @@ Copy({
 		return this;
 	}, */
 
-	/*
-	@param {Function} cb Callback(arg,idx)
-	@returns this
-	*/
+/*
+@param {Function} cb Callback(arg,idx)
+@returns this
+*/
 	/*
 	select: function (cb) {
 		const rtn = [];
@@ -1810,29 +1827,35 @@ REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type]
 @param {Object} index hash of sql-ized indexing keys
 @param {Object} flags hash of flag keys
 @param {Object} where hash of sql-ized conditional keys
-@return {Array} [path,table,type,area,search]
+@return {Array} [path,table,type,area,url]
 */
 	parsePath: function (query,index,flags,where) { 
-		var
-			search = this+"",
-			ops = {
+		const
+			regs = {
 				flags: /\_(.*?)(=)(.*)/,
 				index: /(.*?)(:=)(.*)/,
 				where: /(.*?)(<=|>=|\!=|\!bin=|\!exp=|\!nlp=)(.*)/,
-				other: /(.*?)(<|>|=)(.*)/ 
+				other: /(.*?)(<|>|=)(.*)/,
+
+				area: /\/(.*?)\/(.*)/,
+				file: /(.*)\.(.*)/
 			},
-			[xp, path, search] = search.match(/(.*?)\?(.*)/) || ["",search,""],
-			[xf, area, table, type] = path.match( /\/(.*?)\/(.*)\.(.*)/ ) || path.match( /\/(.*?)\/(.*)/ ) || path.match( /(.*)\/(.*)\.(.*)/ ) || path.match( /(.*)\/(.*)(.*)/ ) || ["","","",""];
+			url = new URL(this, "file:"),
+			{pathname,search} = url,
+			[x1, area, rem] = pathname.match( regs.area ) || ["", "", pathname.substr(1)],
+			[x2, table, type] = rem.match( regs.file ) || ["", rem, rem.endsWith("/") ? "/" : "" ];
+			//[x1, src, search] = pathname.match( regs.src ) || ["",pathname.substr(1),""],
+			//[xp, path, search] = search.match(/(.*?)\?(.*)/) || ["",search,""],
+			//[xf, area, table, type] = path.match( /\/(.*?)\/(.*)\.(.*)/ ) || path.match( /\/(.*?)\/(.*)/ ) || path.match( /(.*)\/(.*)\.(.*)/ ) || path.match( /(.*)\/(.*)(.*)/ ) || ["","","",""];
 
-
-		//Trace("parsepath", search, path, search, area, table, type);
+		//Trace("parsepath", {search:search, area:area, table: table, type: type, rem: rem});
 
 		["=", "<", "<=", ">", ">=", "!=", "!bin=", "!exp=", "!nlp="]
 		.forEach( key => where[key] = {} );
 
-		search.split("&").forEach( parm => {
+		search.substr(1).split("&").forEach( parm => {
 			parm = parm
-			.replace( ops.flags, (str,lhs,op,rhs) => {
+			.replace( regs.flags, (str,lhs,op,rhs) => {
 				try {
 					flags[lhs] = JSON.parse(rhs);
 				}
@@ -1841,15 +1864,15 @@ REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type]
 				}
 				return "";
 			})
-			.replace( ops.index, (str,lhs,op,rhs) => {
+			.replace( regs.index, (str,lhs,op,rhs) => {
 				index[lhs] = rhs;
 				return "";
 			})
-			.replace( ops.where, (str,lhs,op,rhs) => {
+			.replace( regs.where, (str,lhs,op,rhs) => {
 				where[op][lhs] = rhs;
 				return "";
 			})
-			.replace( ops.other, (str,lhs,op,rhs) => {
+			.replace( regs.other, (str,lhs,op,rhs) => {
 				switch (op) {
 					case "=":
 						try {
@@ -1871,7 +1894,7 @@ REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type]
 
 		// Trace("parse", query,index,flags,where);
 
-		return [path,table,type,area,search];
+		return [pathname,table,type,area,url];
 	},
 
 /**
@@ -1949,15 +1972,16 @@ with cb(null) at end.
 	},
 
 /**
-Parse a csv/txt/json stream at the specified path:
+Parse a csv/txt/json stream at the specified path dependings on if the
+keys is
 
-	when keys = [], csv record keys are determined by the first header record; 
-	when keys = [ 'key', 'key', ...], then csv header keys were preset; 
-	when keys = null, raw text records are returned; 
-	when keys = parse(buf) function, then this function (e.g. a JSON parse) is used to parse records.  
+	[] then record keys are determined by the first header record; 
+	[ 'key', 'key', ...] then header keys were preset; 
+	null then raw text records are returned; 
+	function then use to parse records.  
 
-The file is chunked using the (newline,limit) chinkFile parameters.  Callsback cb(record) for 
-each record with cb(null) at end.
+The file is chunked using the (newline,limit) chinkFile parameters.  
+Callsback cb(record) for each record with cb(null) at end.
 
 @param {String} path source file
 @param {Object} opts {keys,comma,newline,limit} options
@@ -2000,6 +2024,7 @@ each record with cb(null) at end.
 						pos++;
 						cb(rec);
 					}
+					
 					else							// drop invalid record
 						pos++;
 
@@ -2183,26 +2208,11 @@ produces:
 
 	},
 
-	/*
-	Parse LHS OP RHS string.
-
-	@param {Object} reg Regular expression to parse
-	@param {Function} cb Callback(remaing token)
-	@returns {String[]} [lhs,op,rhs] or cb results
-	*/
-	/*
-	parseOP: function (reg, cb) {
-		const 
-			[x,lhs,op,rhs] = this.match(reg) || [];
-
-		return op ? [lhs,op,rhs] : cb(this+"");
-	},
-	*/
-	
 /**
+Fetch using supplied url.
 */
 	get: function (cb) {
-		ENUMS.getURL(this,cb);
+		Fetch(this,cb);
 	}
 		
 }, String.prototype);
@@ -2233,35 +2243,34 @@ function Clock(trace,every,on,off,start) {
 }
 
 Copy({
-	/**
-	@returns {Date} Current clock time
-	*/	
+/**
+@returns {Date} Current clock time
+*/	
 	now: function () {
 		return new Date( this.next );
 	},
 	
-	/**
-	Return the wait time to next event, with callback(wait,next) when at snapshot events.
+/**
+Return the wait time to next event, with callback(wait,next) when at snapshot events.
 
-	Example below for ON = 4 and OFF = 3 steps of length vlock.every.
+Example below for ON = 4 and OFF = 3 steps of length vlock.every.
 
-	Here S|B|* indicates the end of snapshot|batch|start events.  The clock starts on epoch = OFF 
-	with a wait = 0.  The clock's host has 1 step to complete its batch tasks, and OFF steps to 
-	complete its snapshot tasks.  Here, the work CYCLE = ON+OFF with a utilization = ON/CYCLE.  
-	Use OFF = 0 to create a continious process.  
+Here S|B|* indicates the end of snapshot|batch|start events.  The clock starts on epoch = OFF 
+with a wait = 0.  The clock's host has 1 step to complete its batch tasks, and OFF steps to 
+complete its snapshot tasks.  Here, the work CYCLE = ON+OFF with a utilization = ON/CYCLE.  
+Use OFF = 0 to create a continious process.  
 
-			S			*	B	B	B	S			*	B	B	B
-			|			|	|	|	|	|			|	|	|	|		...
-			|			|	|	|	|	|			|	|	|	|		
-			x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x
-	epoch	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17
+		S			*	B	B	B	S			*	B	B	B
+		|			|	|	|	|	|			|	|	|	|		...
+		|			|	|	|	|	|			|	|	|	|		
+		x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x-->x
+epoch	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17
 
-			|<-- OFF -->|<---- ON ----->|
+		|<-- OFF -->|<---- ON ----->|
 
-	@param {Function} cb Callback
-	@returns {Date} Wait time
-
-	*/	
+@param {Function} cb Callback
+@returns {Date} Wait time
+*/	
 	tick: function (cb) {		// advance clock, return waitTime, and callback cb(nextTime) on state-change epochs 
 		
 		const
@@ -2481,6 +2490,7 @@ async function LexisNexisTest(N,endpt,R,cb) {
 switch (process.argv[2]) {	//< unit testers
 	case "?":
 	case "E?":
+	case "EHELP":
 		Trace("node enum.js [E$ || En || ELNn || EXn ...]");
 		Trace("logins", {
 			mysql: mysqlLogin,
@@ -2498,6 +2508,7 @@ switch (process.argv[2]) {	//< unit testers
 		break;
 		
 	case "E$":
+	case "EDEBUG":
 		Debug();
 		break;
 
