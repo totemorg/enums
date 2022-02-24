@@ -542,25 +542,32 @@ Regulate a task defined by options `opts`
 
 with callbacks to
 
-	taskcb( recs, ctx, res ) to process the recs-batch in ctx-context with res-responder callback
-	feedcb( err, step ) to feed a batch into the queue via the step-stepper callback 
+	taskcb( recs, ctx, res ) 
+	to process `recs`-batch in `ctx`-context with `res` saver
+	
+	feedcb( step ) 
+	to feed `recs`-batch to the queue via `step(recs)` 
 
-When a `feedcb` is provided, the taskcb is placed into a stream workflow which terminates when the
-records batch becomes null.  A `taskcb` must be provided and must call its res(save) callback 
-to advance task processing with an optional save-context; its ctx-context is loaded from (saved 
-into) its Save_<Class> json store at each step.
+When a `feedcb` is provided, the mandatory `taskcb` is placed into a 
+stream workflow that terminates when the `recs`-batch goes null.  This 
+`taskcb` *must* call its `res(save)` callback to advance task processing 
+(with an optional `save`-context); the supplied `ctx`-context 
+is loaded from (and saved into) its Save_<Class> json store every time
+it is called.
 
-If no `feedcb` is provided, the `taskcb` is periodically executed with a null records batch; in 
-this use-case, the callback to res(save) is optional.
+If no `feedcb` is provided, the `taskcb` is periodically executed with 
+a null `recs`-batch and the callback to `res(save)` is *optional*.
 
-Tasks are identified by Class-Task-Name and increase their Run counter as they are reused.  
+The regulated task is monitored/managed in the openv.queues
+table by supplied Client-Name `opts`.  
 
 A nonzero QoS sets a tasking watchdog timer to manage the task.  
 
-A creditless Client signals a non-null error to the feedcb.
+A creditless Client is signalled by calling `feedcb(null)`.
 
-To establish the task as a proposal, set Sign0 = 1.  In so doing, if (Sign1,Sign2,Sign3) are 
-never signed-off before the proposal's start time, the task will be killed.
+To establish the task as a proposal, set Sign0 = 1.  In so doing, 
+if (Sign1,Sign2,Sign3) are never signed-off before the proposal's 
+start time, the task will be killed.
 
 @param {Object} opts Task regulation options hash
 @param {Function} taskcb(recs,ctx,res) Process record batch recs in context ctx then respond using res
@@ -572,8 +579,8 @@ never signed-off before the proposal's start time, the task will be killed.
 
 		const
 			snapshots = true,		// enable job snapshots
-			profiles = "openv.profiles",
-			queues = "openv.queues";
+			profileDB = "openv.profiles",
+			taskDB = "openv.queues";
 
 		// ===================== end configuration options
 
@@ -606,7 +613,7 @@ never signed-off before the proposal's start time, the task will be killed.
 
 		function startTask( sql, cb ) {
 			sql.query(
-				"SELECT Credit FROM ?? WHERE Client=?", [profiles, Client], (err,profs) => {
+				"SELECT Credit FROM ?? WHERE Client=?", [profileDB, Client], (err,profs) => {
 
 				if ( err ) 
 					Trace("check mysql db started");
@@ -616,7 +623,7 @@ never signed-off before the proposal's start time, the task will be killed.
 					if ( prof.Credit )
 						sql.query(  			// add job to the job queue
 							"INSERT INTO ?? SET ? ON DUPLICATE KEY UPDATE Run=Run+1,?",
-							[queues,queueRec,queueRec],
+							[taskDB,queueRec,queueRec],
 							(err,info) => {  	// increment work backlog for this job
 
 							const
@@ -625,7 +632,7 @@ never signed-off before the proposal's start time, the task will be killed.
 							if ( taskID && watchdog ) 	// setup task watchdog
 								watchTask = setInterval( jobs => {
 									sqlThread( sql => {
-										sql.query("SELECT * FROM ?? WHERE ID=?", [queues,taskID], (err,recs) => manageTask( sql, recs[0] ) );
+										sql.query("SELECT * FROM ?? WHERE ID=?", [taskDB,taskID], (err,recs) => manageTask( sql, recs[0] ) );
 									});
 								}, watchdog, jobs );
 
@@ -653,11 +660,11 @@ never signed-off before the proposal's start time, the task will be killed.
 
 			sql.query( 
 				"UPDATE ?? SET Departed=now(),Finished=1 WHERE ID=?", 
-				[queues,taskID] );
+				[taskDB,taskID] );
 
 			sql.query(  			// update clients credit
 				"UPDATE ?? SET Credit=Credit-? WHERE Client=?",
-				[ profiles, batchesFed, Client ] );
+				[ profileDB, batchesFed, Client ] );
 		}
 
 		function updateTask( sql, taskID ) {
@@ -667,7 +674,7 @@ never signed-off before the proposal's start time, the task will be killed.
 				"Age=datediff(now(),Arrived)*24, " + 
 				"State=Age/Done, " +
 				"ECD=?,Snaps=Snaps+1,Events=?,Batches=? WHERE ID=?", 
-				[ queues, clock.next, eventsFed, batchesFed, taskID ] );		// "ECD=date_add(Arrived, interval State*Work hour), "
+				[ taskDB, clock.next, eventsFed, batchesFed, taskID ] );		// "ECD=date_add(Arrived, interval State*Work hour), "
 		}
 
 		const
@@ -707,8 +714,8 @@ never signed-off before the proposal's start time, the task will be killed.
 			{ Task, QoS, Class } = queueRec = {
 				// mysql unique keys should not be null
 				Client: Client,
-				Class: "tbd",
-				Task: "tbd",
+				Class: "fetch",
+				Task: "fetch",
 				Name: Name,
 
 				// job qos
@@ -777,7 +784,7 @@ never signed-off before the proposal's start time, the task will be killed.
 						sqlThread( sql => {
 							sql.query(		// check approval status
 								"SELECT Sign0,Sign1,Sign2,Sign3 FROM ?? WHERE ID=?",
-								[ queues, taskID ],
+								[ taskDB, taskID ],
 								(err,tasks) => {
 
 								//Trace("start", err, tasks);
@@ -897,9 +904,9 @@ never signed-off before the proposal's start time, the task will be killed.
 				var		// track # jobs completed
 					doneJobs = 0;
 
-				if ( taskID )			// task succesfully started
-					if ( feedcb ) 		// requesting regulated task
-						feedcb( null, recs => {	// get a batch of records
+				if ( taskID )		// task succesfully started
+					if ( feedcb ) 	// requesting regulated task
+						feedcb( recs => {	// get a batch of records
 							if ( recs ) {		// queue this record batch
 								const
 									Recs = recs.forEach ? [] : recs;	// retain either the recs batch or the recs file path
@@ -959,11 +966,11 @@ never signed-off before the proposal's start time, the task will be killed.
 								});
 								sql.query(
 									"UPDATE ?? SET Work=?,ECD=date_add(Arrived, interval State*Work hour) WHERE ID=?", 
-									[queues, jobs.length,taskID] );
+									[taskDB, jobs.length,taskID] );
 							}
-						});
+						} );
 
-					else {				// requesting unregulated task
+					else {			// requesting unregulated task
 						setTimeout( 
 							idx => {		// initial delay to syncup on requested interval
 								jobs.push({
@@ -987,11 +994,11 @@ never signed-off before the proposal's start time, the task will be killed.
 					}
 
 				else				// task could not be started
-					//if ( feedcb ) 
-					//	feedcb( new Error(`client ${Client} cant start`) );
+				if ( feedcb ) 		// signal error condition
+					feedcb( null );
 
-					//else
-						Log( new Error(`client ${Client} cant start`) );
+				else				// log error
+					Log( new Error(`client ${Client} cant start`) );
 			});
 		});
 		
@@ -999,23 +1006,22 @@ never signed-off before the proposal's start time, the task will be killed.
 	},
 		
 /**
-GET (PUT || POST || DELETE) information from/to a `ref` url
+GET (PUT || POST || DELETE) information from (to) a `ref` url
 
 	PROTOCOL://HOST/FILE ? QUERY & FLAGS
 	SITEREF
 
-given corresponding `cb` callback function (or `data` Array || Object || null) 
-and the desired PROTOCOL
+given a `cb` callback function (or a `data` Array || Object || null).
 
-	PROTOCOL		For
-	==============================================
-	http(s) 		http (https) protocol
-	curl(s) 		curl (curls uses certs/fetch.pfx to authenticate)
-	wget(s)			wget (wgets uses certs/fetch.pfx to authenticate)
-	mask 			http access via rotated proxies
-	file			file or folder
-	notebook		selected notebook record
-	lexnex 			Lexis-Nexis oauth access to documents
+The `ref` url specifies a PROTOCOL
+
+	http(s) 	=	http (https) protocol
+	curl(s) 	=	curl (curls uses certs/fetch.pfx to authenticate)
+	wget(s)		=	wget (wgets uses certs/fetch.pfx to authenticate)
+	mask 		=	http access via rotated proxies
+	file		=	file or folder
+	notebook	=	selected notebook record
+	lexnex 		=	Lexis-Nexis oauth access to documents
 
 All "${key}" in `ref` are replaced by QUERY[key].  When a FILE is "/"-terminated, a 
 folder index is returned.  Use the FLAGS
@@ -1406,9 +1412,9 @@ Fetch( ref, null, stat => {		// delete request
 							res(null);
 							break;
 
-						case "csv":		
+						case "csv":	
 							flags.keys = [];
-Trace("stream csv", flags,query);
+//Trace("stream csv", flags,query);
 
 							src.streamFile( flags, recs => res( recs ? recs.get(query) : null ) );
 							break;
@@ -1496,13 +1502,28 @@ Trace("stream csv", flags,query);
 				ref => ref.parse$(query) || ref.tag("?",query)
 		*/
 		
-		if ( flags.every )
-			Regulate(flags, (recs,ctx,cb) => {
-				//Log("fetch ctx", ctx);
-				fetch(res);
-			});
+		if ( flags.every )	// regulated fetch
+			switch (opts.protocol) {
+				case "file:":	// regulate record batches
+					Regulate(flag, (recs,ctx,cb) => {
+						res(recs);
+					}, step => {
+						if (step) 
+							fetch(step);
+
+						else
+							Trace("exhausted credit");
+					} );
+					break;
+					
+				default:		// regulate http requests
+					Regulate(flags, (recs,ctx,cb) => {
+						//Log("fetch ctx", ctx);
+						fetch(res);
+					});
+			}
 		
-		else
+		else		// unregulated fetch
 			fetch(res);
 	}
 
