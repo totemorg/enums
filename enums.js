@@ -264,12 +264,16 @@ Test an object x:
 					}
 
 					else
-						Each( index, (tar,src) => {
-							const x = res[tar] = [];
-							recs.forEach( rec => {
-								x.push( src ? VM.runInContext(src,Copy(rec,stash)) : rec[tar] );
+						try {
+							Each( index, (tar,src) => {
+								const x = res[tar] = [];
+								recs.forEach( rec => {
+									x.push( src ? VM.runInContext(src,Copy(rec,stash)) : rec[tar] );
+								});
 							});
-						});
+						}
+						catch (err) {
+						}
 
 					return res;
 			}
@@ -1016,7 +1020,7 @@ and the desired PROTOCOL
 All "${key}" in `ref` are replaced by QUERY[key].  When a FILE is "/"-terminated, a 
 folder index is returned.  Use the FLAGS
 
-	_every 	= sec||min||hr||...  
+	_every 	= "sec||min||hr||..."
 	_start	= DATE  
 	_end	= DATE  
 	_watch	= NUM  
@@ -1030,9 +1034,11 @@ folder index is returned.  Use the FLAGS
 to regulate the fetch in a job queue with periodic callbacks to `cb`.  Use 
 the FLAGS
 
-	_batch=N
-	_limit=N 
-	_rekey=from:to,... 
+	_batch	= NUM
+	_limit	= NUM
+	_keys	= [...]
+	_comma	= "delim"
+	_newline= "delim"
 
 to read a csv-file and feed record batches to the `cb` callback. 
 
@@ -1339,16 +1345,12 @@ Fetch( ref, null, stat => {		// delete request
 
 				case "book:":
 				case "notebook:":
-					const
-						book = opts.host,
-						name = opts.pathname.substr(1);
-
 					sqlThread( sql => {
-						sql.query( name
+						sql.query( Type
 							? "SELECT * FROM app.? WHERE Name=?"
 							: "SELECT * FROM app.?", 
 
-							[ book, name ], 
+							[ Name, Type ], 
 
 							(err,recs) => res( err ? "" : JSON.stringify(recs) ) );
 					});
@@ -1356,7 +1358,7 @@ Fetch( ref, null, stat => {		// delete request
 
 				case "file:":	// requesting file or folder index
 					//Trace("index file", [path], opts);
-					const src = "."+Path, files = [];
+					const src = "."+Path, recs = [];
 					
 					switch (Type) {
 						case "/":
@@ -1365,10 +1367,10 @@ Fetch( ref, null, stat => {		// delete request
 									var
 										ignore = file.startsWith(".") || file.startsWith("~") || file.startsWith("_") || file.startsWith(".");
 
-									if ( !ignore && files.length < maxFiles ) 
-										files.push( (file.indexOf(".")>=0) ? file : file+"/" );
+									if ( !ignore && recs.length < maxFiles ) 
+										recs.push( (file.indexOf(".")>=0) ? file : file+"/" );
 								});
-								res( files );
+								res( recs );
 							}
 
 							catch (err) {
@@ -1386,7 +1388,46 @@ Fetch( ref, null, stat => {		// delete request
 								res( null );
 							}
 							break;
-						
+
+						case "null":
+							const 
+								dummy = {},
+								{batch,limit} = flags;
+							var
+								read = 0;
+
+							for ( var n=0; n<batch; n++ ) recs.push( dummy );
+
+							while ( read < limit ) { 
+								cb(recs);
+								read += batch;
+							}
+
+							res(null);
+							break;
+
+						case "csv":		
+							flags.keys = [];
+Trace("stream csv", flags,query);
+
+							src.streamFile( flags, recs => res( recs ? recs.get(query) : null ) );
+							break;
+
+						case "list":
+							flags.keys = buf => buf;
+							Copy(query,flags);
+
+							src.streamFile( flags, paths => {
+								paths.forEach( path => res( path ) );
+							});
+							break;
+
+						case "stream":
+						case "str":
+							src.streamFile( flags, recs => res( recs ? recs.get(query) : null ) );
+							break;
+							
+						case "txt":
 						default:
 							FS.readFile(src, "utf-8", (err,buf) => res( err ? null : buf ) );
 					}
@@ -1427,19 +1468,10 @@ Fetch( ref, null, stat => {		// delete request
 				"Object": "POST",
 				"Null": "DELETE"
 			},
-
-			// for wget-curl
-			cert = certs.fetch;
-		
-		//Log([Path,Name,Type,Area], opts);
-		
-		const
-			wget = opts.pathname.split("////"),
-			wurl = wget[0],
-			wout = wget[1] || "./temps/wget.jpg",
-
-			// response callback
-			res = cb || data || console.log,
+			cert = certs.fetch,		// for wget-curl
+			[wurl,wOut] = opts.pathname.split("////"),
+			wopt = wOut || "./temps/wget.jpg",
+			res = cb || data || console.log,	// response callback
 			method = opts.method = crud[ data ? typeOf(data) : "Null" ] ;
 
 		/*
@@ -1455,16 +1487,14 @@ Fetch( ref, null, stat => {		// delete request
 			opts.method = "POST";
 		}*/
 
+		//Log([Path,Name,Type,Area], opts);
+		
 		//Trace("FETCH",ref, "=>", opts, query, flags);
 
-		/*opts.pathname = 
-			opts = 
+		/*
+			opts.pathname = 
 				ref => ref.parse$(query) || ref.tag("?",query)
-			),
-
-			url = (sites ? sites[ref] || ""),
-			  
-			opts = new URL(url), */
+		*/
 		
 		if ( flags.every )
 			Regulate(flags, (recs,ctx,cb) => {
@@ -1843,7 +1873,7 @@ REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type]
 			url = new URL(this, "file:"),
 			{pathname,search} = url,
 			[x1, area, rem] = pathname.match( regs.area ) || ["", "", pathname.substr(1)],
-			[x2, table, type] = rem.match( regs.file ) || ["", rem, rem.endsWith("/") ? "/" : "" ];
+			[x2, table, type] = rem ? rem.match( regs.file ) || ["", rem, rem.endsWith("/") ? "/" : "" ] : ["","","/"];
 			//[x1, src, search] = pathname.match( regs.src ) || ["",pathname.substr(1),""],
 			//[xp, path, search] = search.match(/(.*?)\?(.*)/) || ["",search,""],
 			//[xf, area, table, type] = path.match( /\/(.*?)\/(.*)\.(.*)/ ) || path.match( /\/(.*?)\/(.*)/ ) || path.match( /(.*)\/(.*)\.(.*)/ ) || path.match( /(.*)\/(.*)(.*)/ ) || ["","","",""];
@@ -1995,15 +2025,17 @@ Callsback cb(record) for each record with cb(null) at end.
 		var 
 			pos = 0;
 
+//Trace("parse keys",keys);
+		
 		if ( keys ) {		// split csv/json file
 			const
 				parse = keys.forEach 		// define buffer parser
 					? (buf,keys) => {		// parse csv buffer
-						if ( keys.forEach ) {	/// at data row
+						if ( pos ) {	/// at data row
 							var 
 								rec = {},
 								cols = buf.split(comma);
-
+//Trace("parse cols", cols,keys);
 							keys.forEach( (key,m) => rec[key] = cols[m] );
 							return rec;
 						}
@@ -2011,7 +2043,7 @@ Callsback cb(record) for each record with cb(null) at end.
 						else {	// at header row so define keys
 							if ( buf.charCodeAt(0) > 255 ) buf=buf.substr(1);	// weird
 							buf.split(",").forEach( key => keys.push(key) );
-							//Trace("split header keys", keys);
+//Trace("parse header keys", keys);
 							return null;
 						}
 					}

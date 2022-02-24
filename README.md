@@ -367,7 +367,7 @@ and the desired PROTOCOL
 All "${key}" in `ref` are replaced by QUERY[key].  When a FILE is "/"-terminated, a 
 folder index is returned.  Use the FLAGS
 
-	_every 	= sec||min||hr||...  
+	_every 	= "sec||min||hr||..."
 	_start	= DATE  
 	_end	= DATE  
 	_watch	= NUM  
@@ -381,9 +381,11 @@ folder index is returned.  Use the FLAGS
 to regulate the fetch in a job queue with periodic callbacks to `cb`.  Use 
 the FLAGS
 
-	_batch=N
-	_limit=N 
-	_rekey=from:to,... 
+	_batch	= NUM
+	_limit	= NUM
+	_keys	= [...]
+	_comma	= "delim"
+	_newline= "delim"
 
 to read a csv-file and feed record batches to the `cb` callback.
 
