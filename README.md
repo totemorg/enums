@@ -94,8 +94,8 @@ documented in accordance with [jsdoc](https://jsdoc.app/).
     * [.Copy(src, tar, deep)](#module_ENUMS.Copy) ⇒ <code>Object</code>
     * [.Each(A, cb)](#module_ENUMS.Each)
     * [.Stream(src, cb()](#module_ENUMS.Stream)
-    * [.Regulate(opts, taskcb(recs,ctx,res), feedcb(err,step))](#module_ENUMS.Regulate) ⇒ <code>Clock</code>
-    * [.Fetch(ref, cb, [cb])](#module_ENUMS.Fetch)
+    * [.Regulate(opts, taskcb(recs,ctx,res), [feedcb(err,step)])](#module_ENUMS.Regulate) ⇒ <code>Clock</code>
+    * [.Fetch(ref, [cb], [cb])](#module_ENUMS.Fetch)
 
 <a name="module_ENUMS.mysqlOpts"></a>
 
@@ -298,7 +298,7 @@ Serialize a string:
 ```
 <a name="module_ENUMS.Regulate"></a>
 
-### ENUMS.Regulate(opts, taskcb(recs,ctx,res), feedcb(err,step)) ⇒ <code>Clock</code>
+### ENUMS.Regulate(opts, taskcb(recs,ctx,res), [feedcb(err,step)]) ⇒ <code>Clock</code>
 Regulate a task defined by options `opts`
 
 	every 	= N [sec||min||hr||...]
@@ -355,11 +355,11 @@ The following DBs are used:
 | --- | --- | --- |
 | opts | <code>Object</code> | Task regulation options hash |
 | taskcb(recs,ctx,res) | <code>function</code> | Process record batch recs in context ctx then respond using res |
-| feedcb(err,step) | <code>function</code> | Feed a record batch recs using step(recs) |
+| [feedcb(err,step)] | <code>function</code> | Feed a record batch recs using step(recs) |
 
 <a name="module_ENUMS.Fetch"></a>
 
-### ENUMS.Fetch(ref, cb, [cb])
+### ENUMS.Fetch(ref, [cb], [cb])
 GET (PUT || POST || DELETE) information from (to) a `ref` url
 
 	PROTOCOL://HOST/FILE ? QUERY & FLAGS
@@ -407,7 +407,7 @@ to read a csv-file and feed record batches to the `cb` callback.
 | Param | Type | Description |
 | --- | --- | --- |
 | ref | <code>String</code> | source URL |
-| cb | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | callback or data |
+| [cb] | <code>string</code> \| <code>array</code> \| <code>function</code> \| <code>null</code> | callback or data |
 | [cb] | <code>function</code> | optional callback when first cb is data |
 
 **Example**  

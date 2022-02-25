@@ -578,7 +578,7 @@ The following DBs are used:
 
 @param {Object} opts Task regulation options hash
 @param {Function} taskcb(recs,ctx,res) Process record batch recs in context ctx then respond using res
-@param {Function} feedcb(err,step) Feed a record batch recs using step(recs)
+@param {Function} [feedcb(err,step)] Feed a record batch recs using step(recs)
 @returns {Clock} Clock built for regulation options
 */
 	Regulate: (opts,taskcb,feedcb) => {
@@ -1012,7 +1012,7 @@ Trace( "Regulating", clock);
 				else				// log error
 					Log( new Error(`client ${Client} cant start`) );
 			});
-		});
+		} );
 		
 		return clock;
 	},
@@ -1061,7 +1061,7 @@ the FLAGS
 to read a csv-file and feed record batches to the `cb` callback. 
 
 @param {String} ref source URL
-@param {string | array | function | null} cb callback or data 
+@param {string | array | function | null} [cb] callback or data 
 @param {function} [cb] optional callback when first cb is data
 
 @example
