@@ -301,7 +301,7 @@ Serialize a string:
 ### ENUMS.Regulate(opts, taskcb(recs,ctx,res), feedcb(err,step)) ⇒ <code>Clock</code>
 Regulate a task defined by options `opts`
 
-	every 	= sec||min||hr||...  
+	every 	= N [sec||min||hr||...]
 	start	= DATE  
 	end		= DATE  
 	on		= NUM  
@@ -314,25 +314,39 @@ Regulate a task defined by options `opts`
 
 with callbacks to
 
-	taskcb( recs, ctx, res ) to process the recs-batch in ctx-context with res-responder callback
-	feedcb( err, step ) to feed a batch into the queue via the step-stepper callback 
+	taskcb( recs, ctx, res ) 
+	to process `recs`-batch in `ctx`-context with `res` saver
+	
+	feedcb( step ) 
+	to feed `recs`-batch to the queue via `step(recs)` 
 
-When a `feedcb` is provided, the taskcb is placed into a stream workflow which terminates when the
-records batch becomes null.  A `taskcb` must be provided and must call its res(save) callback 
-to advance task processing with an optional save-context; its ctx-context is loaded from (saved 
-into) its Save_<Class> json store at each step.
+When a `feedcb` is provided, the mandatory `taskcb` is placed into a 
+stream workflow that terminates when the `recs`-batch goes null.  This 
+`taskcb` *must* call its `res([save])` callback to advance the task; 
+the supplied `ctx`-context is loaded from (and saved into) its 
+json store every time the task is stepped.
 
-If no `feedcb` is provided, the `taskcb` is periodically executed with a null records batch; in 
-this use-case, the callback to res(save) is optional.
+If no `feedcb` is provided, the `taskcb` is periodically executed with 
+a null `recs`-batch and the callback to `res([save])` is *optional*.
 
-Tasks are identified by Class-Task-Name and increase their Run counter as they are reused.  
+The regulated task is monitored/managed by the supplied options
 
-A nonzero QoS sets a tasking watchdog timer to manage the task.  
+	task 	= notebook being regulated (default "notask")
+	name	= usecase being regulated (default "nocase")
+	watch	= QoS task watchdog timer [s]; 0 disabled (default 60)
 
-A creditless Client signals a non-null error to the feedcb.
+A nonzero QoS sets a tasking watchdog timer to manage the task.  A credit
+deficient client is signalled by calling `feedcb(null)`.
 
-To establish the task as a proposal, set Sign0 = 1.  In so doing, if (Sign1,Sign2,Sign3) are 
-never signed-off before the proposal's start time, the task will be killed.
+To establish the task as a proposal, set Sign0 = 1 in the taskDB: in so 
+doing, if Sign1 , ... are not signed-off (eg not approved by a task oversight
+commitee) before the proposal's start time, the task will be killed.
+
+The following DBs are used:
+
+	openv.profiles client credit/billing information
+	openv.queues tasking/billing information
+	openv.<task> holds the task context and snapshot state
 
 **Kind**: static method of [<code>ENUMS</code>](#module_ENUMS)  
 **Returns**: <code>Clock</code> - Clock built for regulation options  
@@ -346,23 +360,22 @@ never signed-off before the proposal's start time, the task will be killed.
 <a name="module_ENUMS.Fetch"></a>
 
 ### ENUMS.Fetch(ref, cb, [cb])
-GET (PUT || POST || DELETE) information from/to a `ref` url
+GET (PUT || POST || DELETE) information from (to) a `ref` url
 
 	PROTOCOL://HOST/FILE ? QUERY & FLAGS
 	SITEREF
 
-given corresponding `cb` callback function (or `data` Array || Object || null) 
-and the desired PROTOCOL
+given a `cb` callback function (or a `data` Array || Object || null).
 
-	PROTOCOL		For
-	==============================================
-	http(s) 		http (https) protocol
-	curl(s) 		curl (curls uses certs/fetch.pfx to authenticate)
-	wget(s)			wget (wgets uses certs/fetch.pfx to authenticate)
-	mask 			http access via rotated proxies
-	file			file or folder
-	notebook		selected notebook record
-	lexnex 			Lexis-Nexis oauth access to documents
+The `ref` url specifies a PROTOCOL
+
+	http(s) 	=	http (https) protocol
+	curl(s) 	=	curl (curls uses certs/fetch.pfx to authenticate)
+	wget(s)		=	wget (wgets uses certs/fetch.pfx to authenticate)
+	mask 		=	http access via rotated proxies
+	file		=	file or folder
+	notebook	=	selected notebook record
+	lexnex 		=	Lexis-Nexis oauth access to documents
 
 All "${key}" in `ref` are replaced by QUERY[key].  When a FILE is "/"-terminated, a 
 folder index is returned.  Use the FLAGS
@@ -739,7 +752,7 @@ start date.  See the clock tick method for more information.
 ### Clock~tick(cb) ⇒ <code>Date</code>
 Return the wait time to next event, with callback(wait,next) when at snapshot events.
 
-Example below for ON = 4 and OFF = 3 steps of length vlock.every.
+Example below for ON = 4 and OFF = 3 steps of length clock.every = sec|min|hour|...
 
 Here S|B|* indicates the end of snapshot|batch|start events.  The clock starts on epoch = OFF 
 with a wait = 0.  The clock's host has 1 step to complete its batch tasks, and OFF steps to 

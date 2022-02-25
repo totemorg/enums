@@ -529,7 +529,7 @@ Legacy Fetching certs
 /**
 Regulate a task defined by options `opts`
 
-	every 	= sec||min||hr||...  
+	every 	= N [sec||min||hr||...]
 	start	= DATE  
 	end		= DATE  
 	on		= NUM  
@@ -550,24 +550,31 @@ with callbacks to
 
 When a `feedcb` is provided, the mandatory `taskcb` is placed into a 
 stream workflow that terminates when the `recs`-batch goes null.  This 
-`taskcb` *must* call its `res(save)` callback to advance task processing 
-(with an optional `save`-context); the supplied `ctx`-context 
-is loaded from (and saved into) its Save_<Class> json store every time
-it is called.
+`taskcb` *must* call its `res([save])` callback to advance the task; 
+the supplied `ctx`-context is loaded from (and saved into) its 
+json store every time the task is stepped.
 
 If no `feedcb` is provided, the `taskcb` is periodically executed with 
-a null `recs`-batch and the callback to `res(save)` is *optional*.
+a null `recs`-batch and the callback to `res([save])` is *optional*.
 
-The regulated task is monitored/managed in the openv.queues
-table by supplied Client-Name `opts`.  
+The regulated task is monitored/managed by the supplied options
 
-A nonzero QoS sets a tasking watchdog timer to manage the task.  
+	task 	= notebook being regulated (default "notask")
+	name	= usecase being regulated (default "nocase")
+	watch	= QoS task watchdog timer [s]; 0 disabled (default 60)
 
-A creditless Client is signalled by calling `feedcb(null)`.
+A nonzero QoS sets a tasking watchdog timer to manage the task.  A credit
+deficient client is signalled by calling `feedcb(null)`.
 
-To establish the task as a proposal, set Sign0 = 1.  In so doing, 
-if (Sign1,Sign2,Sign3) are never signed-off before the proposal's 
-start time, the task will be killed.
+To establish the task as a proposal, set Sign0 = 1 in the taskDB: in so 
+doing, if Sign1 , ... are not signed-off (eg not approved by a task oversight
+commitee) before the proposal's start time, the task will be killed.
+
+The following DBs are used:
+
+	openv.profiles client credit/billing information
+	openv.queues tasking/billing information
+	openv.<task> holds the task context and snapshot state 
 
 @param {Object} opts Task regulation options hash
 @param {Function} taskcb(recs,ctx,res) Process record batch recs in context ctx then respond using res
@@ -582,7 +589,7 @@ start time, the task will be killed.
 			profileDB = "openv.profiles",
 			taskDB = "openv.queues";
 
-		// ===================== end configuration options
+		// ===================== configuration options
 
 		function cpuUtil() {				// return average cpu utilization
 			var avgUtil = 0;
@@ -616,7 +623,7 @@ start time, the task will be killed.
 				"SELECT Credit FROM ?? WHERE Client=?", [profileDB, Client], (err,profs) => {
 
 				if ( err ) 
-					Trace("check mysql db started");
+					Trace("cant start task - check if mysql db started");
 					
 				else
 				if ( prof = profs[0] )
@@ -676,14 +683,18 @@ start time, the task will be killed.
 				"ECD=?,Snaps=Snaps+1,Events=?,Batches=? WHERE ID=?", 
 				[ taskDB, clock.next, eventsFed, batchesFed, taskID ] );		// "ECD=date_add(Arrived, interval State*Work hour), "
 		}
+		
+		function traceTask( msg ) {
+			`${Task}-${Name}`.trace( msg );
+		}
 
 		const
 			{ round } = Math,
-			{ every,start,end,on,off,util,watch,limit,batch,name,client } = opts,
-			{ Every,Start,End,On,Off,Util,Watch,Limit,Batch,Name,Client } = Opts = {
+			{ every,start,end,on,off,util,watch,limit,batch,name,client,task } = opts,
+			{ Every,Start,End,On,Off,Util,Watch,Limit,Batch,Name,Client,Task } = Opts = {
 				// process regulation
 				
-				Every: parseInt(every || "0") || every,					// [secs]
+				Every: every+"",					// N[sec||min||...]
 				Start: start ? new Date( start ) : new Date(),
 				End: end || null,
 				On: round(on || off * util || 0),						// [steps]
@@ -700,22 +711,21 @@ start time, the task will be killed.
 
 				// job regulation
 				
-				Name: name || "noname",
+				Task: task || taskcb.name || "notask",
+				Name: name || "nocase",
 				Client: client || "system"
 			},
 			clock = new Clock( "",Every,On,Off,Start,End );
 
-		Trace( "Regulating", clock);
+Trace( "Regulating", clock);
 		
 		const 
-			traceQueue = ( msg, args ) => `task-${Class}`.trace( msg, null, msg => console.log( msg, args )),
 			jobs = [],
-			// { end } = clock,
-			{ Task, QoS, Class } = queueRec = {
+			queueRec = {
 				// mysql unique keys should not be null
 				Client: Client,
 				Class: "fetch",
-				Task: "fetch",
+				Task: Task,
 				Name: Name,
 
 				// job qos
@@ -764,16 +774,14 @@ start time, the task will be killed.
 				Work: 0,
 				Done: 1
 			},
-			book = Task || taskcb.name || "notask",
-			usecase = Name,
-			watchdog = QoS*1e3 || 0;	// task watchdog interval in msecs (0 disables)
+			watchdog = Watch*1e3 || 0;	// task watchdog interval in msecs (0 disables)
 
 		var							// task metrics
 			snapStore = "Save_snap", // "Save_"+Class,	// snapshot json store
 			watchTask = 0,			// watchdog timer
 			eventsFed = 0,			// # of records routed to taskcb
-			batchesFed = 0,			// # of bacthes routed to taskcb
-			eventsQueued = 0,		// # of records queued by feedcb
+			batchesFed = 0,			// # of batches routed to taskcb
+			eventsQueued = 0,		// # of records provided by feedcb
 			batchesQueued = 0;		// # of batches queued by feedcb
 
 		sqlThread( sql => {
@@ -787,9 +795,9 @@ start time, the task will be killed.
 								[ taskDB, taskID ],
 								(err,tasks) => {
 
-								//Trace("start", err, tasks);
-								if ( task = tasks[0] ) {
-									const {Sign0,Sign1,Sign2,Sign3} = task;
+//Trace("start snap", err, tasks);
+								if ( task0 = tasks[0] ) {
+									const {Sign0,Sign1,Sign2,Sign3} = task0;
 
 									if ( Sign0 && (!Sign1 || !Sign2 || !Sign3) ) {	// signers have rejected task proposal so ...
 										stopTask( sql, taskID, true );		// kill task
@@ -799,21 +807,19 @@ start time, the task will be killed.
 									else {
 										//sql.query("START TRANSACTION");
 										sql.query(
-											`SELECT ${snapStore} AS ctx FROM app.?? WHERE Name=? `, // + "FOR UPDATE", 
-											[book,usecase], 
+											`SELECT ${snapStore} AS ctx FROM app.?? WHERE Name=? LIMIT 1`, // + "FOR UPDATE", 
+											[Task,Name], 
 											(err,snaps) => {
 
-												//Trace("start2", err, snaps);
-												//Trace("...............load snap", snapStore, snaps);
-
-												if ( err ) 	// notebook did not define a snapshot store
+//Trace("load snap", err, snaps);
+												if ( err ) 	// nonexitant notebook or snapshot store
 													cb( sql, null );
 
 												else
 												if ( snap = snaps[0] )
 													cb( sql, JSON.parse( snap.ctx ) || {} );
 
-												else	// someone deleted usecase
+												else	// usecase does not exist
 													cb( sql, null );
 											});
 									}
@@ -828,8 +834,8 @@ start time, the task will be killed.
 					function saveSnap( sql, save ) {
 						const 
 							savectx = {
-								Host: book,
-								Name: usecase
+								Host: Task,
+								Name: Name
 							};
 
 						//Trace(".............save snap", savectx);
@@ -853,30 +859,31 @@ start time, the task will be killed.
 						});*/
 					}
 
-					//Trace("====step", idx);
+//Trace("step task", idx);
 
 					startSnap( (sql,ctx) => {	// load previous snapshot context
 
-						//Trace("====step ctx", idx, ctx?true:false);
+//Trace("====step ctx", idx, ctx?true:false);
 
-						if ( ctx ) {			// valid context so step the task
+						if ( true || ctx ) {			// valid context so step the task
 							const
 								recs = jobs[idx].recs;
 
-							if ( recs ) {	// advance metrics if this is a batch
-								//Trace("====step start", idx, "recs", recs.length);
+							if ( recs ) {	// advance metrics 
+//Trace("====step metrics", idx, "recs", recs.length);
 
-								eventsFed += recs.length;
+								eventsFed += recs.forEach ? recs.length : 1;
 								batchesFed ++;
-								traceQueue( "drain", {batches: batchesFed, events: eventsFed});
+								// traceTask( `drained ${batchesFed} batches ${eventsFed} events` );
 							}
 
+//Trace("====step task",ctx);
 							taskcb( recs, ctx, save => {	// call task then save its snapshot
 
-								//Trace("====step start snap",idx);
-								traceQueue( "percent complete", doneJobs/jobs.length );
+//Trace("====step start snap",idx);
+								traceTask( `completed ${Math.trunc(100*doneJobs/jobs.length)}%` );
 
-								//Trace("task save?", save?true:false);
+//Trace("task save?", save?true:false);
 								if ( save ) 	// update and reset snapshot metrics
 									saveSnap(sql,save);
 
@@ -911,27 +918,29 @@ start time, the task will be killed.
 								const
 									Recs = recs.forEach ? [] : recs;	// retain either the recs batch or the recs file path
 
+//Trace("feeding", recs.forEach?recs.length : recs);
+
 								if ( recs.forEach ) 		// clone record batch
 									recs.forEach( rec => Recs.push( new Object(rec) ));
 
-								//Trace("PUSH BATCH", jobs.length);
+//Trace("PUSH STEP", jobs.length);
 								jobs.push({				// add a job to the task queue
-									recs: Recs,
-									idx: jobs.length,
+									recs: Recs,			// hold batch at this step
+									idx: jobs.length,	// at step idx=job.length=#feeds
 									timer: 	setTimeout( 
 										idx => {
-											//Trace("DO BATCH", idx); 
+//Trace("RUN STEP", idx); 
 											stepTask( idx );
 										}, 
 
 										clock.tick( wait => {	// add a snapshot signal 
 
-											//Trace("PUSH SNAP", jobs.length, wait);
+//Trace("PUSH SNAP", jobs.length, wait);
 											jobs.push({	// callback notebook with null batch to signal snapshot
 												recs: null,
 												idx: jobs.length,
 												timer: setTimeout( idx => {
-														//Trace("DO SNAP", idx);
+//Trace("RUN SNAP", idx);
 														stepTask( idx );
 													}, 
 
@@ -947,7 +956,7 @@ start time, the task will be killed.
 
 								batchesQueued++;
 								eventsQueued += recs.forEach ? recs.length : 1;
-								traceQueue("queue", {batches: batchesQueued, events: eventsQueued});
+								// traceTask( `queued ${batchesQueued} batches ${eventsQueued} events` );
 							}
 
 							else {	// prime task and schedule EOS job
@@ -956,7 +965,7 @@ start time, the task will be killed.
 									idx: jobs.length,
 									timer: setTimeout( 
 										idx => {
-											//Trace("BATCH", idx); 
+//Trace("BATCH STEP", idx); 
 											stepTask( idx );
 										}, 
 
@@ -977,10 +986,13 @@ start time, the task will be killed.
 									recs: null,
 									idx: jobs.length,
 									timer: setInterval( 
-											idx => taskcb( null, jobs[idx], save => {
-												//Trace(">>>job nofeed", clock.tick(), clock.every);
-												updateTask(sql,taskID);
-											}),  
+											idx => {
+//Trace("unreg task", idx);
+												taskcb( null, jobs[idx], save => {
+//Trace("unreg job", clock.tick(), clock.every);
+													updateTask(sql,taskID);
+												});
+											},  
 
 											clock.tick(), 
 
@@ -1076,7 +1088,7 @@ Fetch( ref, null, stat => {		// delete request
 		}
 
 		function request(proto, opts, data, cb) {
-			//Trace(">>>fetch req opts", opts);
+//Trace(">>>fetch req opts", opts);
 			//delete opts.auth;
 			
 			const Req = proto.request(opts, Res => { // get reponse body text
@@ -1172,7 +1184,7 @@ Fetch( ref, null, stat => {		// delete request
 			};
 			
 			request(HTTPS, token, grant, token => {		// request access token
-				//Trace("token", token);
+//Trace("token", token);
 				try {
 					const 
 						Token = JSON.parse(token);
@@ -1187,7 +1199,7 @@ Fetch( ref, null, stat => {		// delete request
 					};
 					//delete opts.auth;
 
-					Trace("oauth token request", opts );
+Trace("oauth token request", opts );
 					request(HTTPS, opts, search => {	// request a document search
 						if ( docopts = doc ) 			// has document fetch url so ...
 							try {	
@@ -1234,7 +1246,7 @@ Fetch( ref, null, stat => {		// delete request
 				}
 
 				catch (err) {
-					Trace("oauth bad token", token);
+Trace("oauth bad token", token);
 					res(null);
 				}
 			});
@@ -1327,7 +1339,7 @@ Fetch( ref, null, stat => {		// delete request
 					break;
 
 				case "http:":
-					//Trace("http", opts);
+//Trace("http", opts);
 
 					request(HTTP, opts, data, res);
 					break;
@@ -1363,7 +1375,7 @@ Fetch( ref, null, stat => {		// delete request
 					break;
 
 				case "file:":	// requesting file or folder index
-					//Trace("index file", [path], opts);
+//Trace("index file", [path], opts);
 					const src = "."+Path, recs = [];
 					
 					switch (Type) {
@@ -1380,8 +1392,7 @@ Fetch( ref, null, stat => {		// delete request
 							}
 
 							catch (err) {
-								//Trace("fetch index error", err);
-								res( [] );
+								res( null );
 							}
 							break;
 							
@@ -1416,7 +1427,10 @@ Fetch( ref, null, stat => {		// delete request
 							flags.keys = [];
 //Trace("stream csv", flags,query);
 
-							src.streamFile( flags, recs => res( recs ? recs.get(query) : null ) );
+							src.streamFile( flags, recs => {
+//Trace("csv batch", recs ? recs.length : null);
+								res( recs ? recs.get(query) : null );
+							});
 							break;
 
 						case "list":
@@ -1457,7 +1471,7 @@ Fetch( ref, null, stat => {		// delete request
 					break;
 
 				default:	
-					Trace( "fetch bad protocol" );
+Trace( "fetch bad protocol", opts );
 					res(null);
 			}
 		}
@@ -1493,9 +1507,7 @@ Fetch( ref, null, stat => {		// delete request
 			opts.method = "POST";
 		}*/
 
-		//Log([Path,Name,Type,Area], opts);
-		
-		//Trace("FETCH",ref, "=>", opts, query, flags);
+//Trace("FETCH",ref, "=>", opts, query, flags);
 
 		/*
 			opts.pathname = 
@@ -1504,21 +1516,21 @@ Fetch( ref, null, stat => {		// delete request
 		
 		if ( flags.every )	// regulated fetch
 			switch (opts.protocol) {
-				case "file:":	// regulate record batches
-					Regulate(flag, (recs,ctx,cb) => {
+				case "file:":	// regulated record batches
+					Regulate(flags, (recs,ctx,cb) => {	// process records
 						res(recs);
-					}, step => {
+						cb();
+					}, step => {	// feed records to queue
 						if (step) 
 							fetch(step);
 
 						else
-							Trace("exhausted credit");
+							Trace("client exhausted credit");
 					} );
 					break;
 					
-				default:		// regulate http requests
+				default:		// regulated http requests
 					Regulate(flags, (recs,ctx,cb) => {
-						//Log("fetch ctx", ctx);
 						fetch(res);
 					});
 			}
@@ -1817,6 +1829,7 @@ Parse "$.KEY" || "$[INDEX]" expressions given $ hash.
 		}
 
 		catch (err) {
+Trace("err parse eval", this);
 			return err+"";
 		}
 	},
@@ -1831,7 +1844,7 @@ Run JS against string in specified context.
 			return VM.runInContext( this+"", VM.createContext(ctx || {}));
 		}
 		catch (err) {
-			//Trace("parseJS", this+"", err, ctx);
+Trace("parseJS", this+"", err, ctx);
 			if ( cb ) 
 				return cb(err);
 
@@ -1850,6 +1863,7 @@ Return an EMAC "...${...}..." string using supplied context.
 			return VM.runInContext( "`" + this + "`" , VM.createContext(ctx));
 		}
 		catch (err) {
+Trace("parse$ err", err,this);
 			return err+"";
 		}
 	},
@@ -1864,7 +1878,7 @@ Parse string into json or set to default value/callback if invalid json.
 			return JSON.parse(this);
 		}
 		catch (err) {  
-			//Trace("jparse", this, err);
+Trace("parsejson err", this, err);
 			return def ? (isFunction(def) ? def(this+"") : def) || null : null;
 		}
 	},
@@ -1895,9 +1909,6 @@ REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type]
 			{pathname,search} = url,
 			[x1, area, rem] = pathname.match( regs.area ) || ["", "", pathname.substr(1)],
 			[x2, table, type] = rem ? rem.match( regs.file ) || ["", rem, rem.endsWith("/") ? "/" : "" ] : ["","","/"];
-			//[x1, src, search] = pathname.match( regs.src ) || ["",pathname.substr(1),""],
-			//[xp, path, search] = search.match(/(.*?)\?(.*)/) || ["",search,""],
-			//[xf, area, table, type] = path.match( /\/(.*?)\/(.*)\.(.*)/ ) || path.match( /\/(.*?)\/(.*)/ ) || path.match( /(.*)\/(.*)\.(.*)/ ) || path.match( /(.*)\/(.*)(.*)/ ) || ["","","",""];
 
 		//Trace("parsepath", {search:search, area:area, table: table, type: type, rem: rem});
 
@@ -2286,10 +2297,10 @@ function Clock(trace,every,on,off,start) {
 	this.on = on || Infinity;
 	this.off = off || 0;
 	this.epoch = this.off;
-	this.every = every;
+	this.every = every.replace( /[0-9.]/g, "");		// N [sec|min|hour|....]
 	this.trace = trace;
 	this.cycle = off ? on+off-2 : 1; //(on>=2) ? on+off-2 : 0;  // Internal clock cycle = CYCLE - 2 = ON+OFF-2.
-	this.step = 1;
+	this.step = parseFloat(every) || 1;
 	this.util = on ? on/(on+off) : 0;
 	
 	if ( trace ) Trace(this);
@@ -2306,7 +2317,7 @@ Copy({
 /**
 Return the wait time to next event, with callback(wait,next) when at snapshot events.
 
-Example below for ON = 4 and OFF = 3 steps of length vlock.every.
+Example below for ON = 4 and OFF = 3 steps of length clock.every = sec|min|hour|...
 
 Here S|B|* indicates the end of snapshot|batch|start events.  The clock starts on epoch = OFF 
 with a wait = 0.  The clock's host has 1 step to complete its batch tasks, and OFF steps to 
@@ -2554,8 +2565,8 @@ switch (process.argv[2]) {	//< unit testers
 		Trace("connections", {
 			mysql: mysqlCon ? true : false,
 			neo4j: neo4jCon  ? true : false,
-			txmail:  txmailCon ? true : false,
-			rxmail:  rxmailCon ? true : false
+			txmail: txmailCon ? true : false,
+			rxmail: rxmailCon ? true : false
 		});
 
 		break;
