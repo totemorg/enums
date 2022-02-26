@@ -301,7 +301,7 @@ Serialize a string:
 ### ENUMS.Regulate(opts, taskcb(recs,ctx,res), [feedcb(err,step)]) ⇒ <code>Clock</code>
 Regulate a task defined by options `opts`
 
-	every 	= N [sec||min||hr||...]
+	every 	= NUM [sec||min||hr||...]
 	start	= DATE  
 	end		= DATE  
 	on		= NUM  
@@ -309,8 +309,8 @@ Regulate a task defined by options `opts`
 	util	= NUM  
 
 	batch	= INT  
-	watch	= NUM  
 	limit	= INT  
+	drop	= NUM
 
 with callbacks to
 
@@ -323,8 +323,8 @@ with callbacks to
 When a `feedcb` is provided, the mandatory `taskcb` is placed into a 
 stream workflow that terminates when the `recs`-batch goes null.  This 
 `taskcb` *must* call its `res([save])` callback to advance the task; 
-the supplied `ctx`-context is loaded from (and saved into) its 
-json store every time the task is stepped.
+the supplied `ctx`-context is loaded from (and saved into) its json 
+store every time the task is stepped.
 
 If no `feedcb` is provided, the `taskcb` is periodically executed with 
 a null `recs`-batch and the callback to `res([save])` is *optional*.
@@ -333,6 +333,7 @@ The regulated task is monitored/managed by the supplied options
 
 	task 	= notebook being regulated (default "notask")
 	name	= usecase being regulated (default "nocase")
+	client	= task owner (default "system")
 	watch	= QoS task watchdog timer [s]; 0 disabled (default 60)
 
 A nonzero QoS sets a tasking watchdog timer to manage the task.  A credit
@@ -342,7 +343,7 @@ To establish the task as a proposal, set Sign0 = 1 in the taskDB: in so
 doing, if Sign1 , ... are not signed-off (eg not approved by a task oversight
 commitee) before the proposal's start time, the task will be killed.
 
-The following DBs are used:
+Regulate uses the following DBs:
 
 	openv.profiles client credit/billing information
 	openv.queues tasking/billing information
@@ -373,14 +374,15 @@ The `ref` url specifies a PROTOCOL
 	curl(s) 	=	curl (curls uses certs/fetch.pfx to authenticate)
 	wget(s)		=	wget (wgets uses certs/fetch.pfx to authenticate)
 	mask 		=	http access via rotated proxies
-	file		=	file or folder
+	file		=	file or folder path
 	notebook	=	selected notebook record
 	lexnex 		=	Lexis-Nexis oauth access to documents
 
-All "${key}" in `ref` are replaced by QUERY[key].  When a FILE is "/"-terminated, a 
-folder index is returned.  Use the FLAGS
+All "${key}" in `ref` are replaced by QUERY[key].  When a file path is 
+"/"-terminated, a folder index is returned.  File paths can contain
+wild-* cards.  Use the FLAGS
 
-	_every 	= "sec||min||hr||..."
+	_every 	= NUM "sec||min||hr||..."
 	_start	= DATE  
 	_end	= DATE  
 	_watch	= NUM  
@@ -388,7 +390,8 @@ folder index is returned.  Use the FLAGS
 	_on		= NUM  
 	_off	= NUM  						
 	_util	= NUM  
-	_name	= "job name"
+	_task 	= "job task name"
+	_name	= "job case name"
 	_client = "job owner"
 
 to regulate the fetch in a job queue with periodic callbacks to `cb`.  Use 
