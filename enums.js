@@ -1427,7 +1427,7 @@ Trace("oauth bad token", token);
 
 							case "json":
 								try {
-									FS.readFile(src, "utf-8", (err,buf) => res( err ? null : JSON.parse(buf) ) );
+									FS.readFile(src, "utf8", (err,buf) => res( err ? null : JSON.parse(buf) ) );
 								}
 
 								catch (err) {
@@ -1454,7 +1454,7 @@ Trace("oauth bad token", token);
 
 							case "csv":	
 								flags.keys = [];
-	//Trace("stream csv", flags,query);
+//Trace("stream csv", flags,query);
 
 								src.streamFile( flags, recs => {
 	//Trace("csv batch", recs ? recs.length : null);
@@ -1476,9 +1476,16 @@ Trace("oauth bad token", token);
 								src.streamFile( flags, recs => res( recs ? recs.get(query) : null ) );
 								break;
 
+							case "jpg":							
+							case "png":							
+							case "ico":							
+								FS.readFile(src, "buffer", (err,buf) => res( err ? null : buf ) );
+								break;
+							
 							case "txt":
 							default:
-								FS.readFile(src, "utf-8", (err,buf) => res( err ? null : buf ) );
+								FS.readFile(src, "utf8", (err,buf) => res( err ? null : buf ) );
+								break;
 						}
 					});
 					break;
@@ -1531,7 +1538,7 @@ Trace( "fetch bad protocol", opts );
 		// opts.port = opts.port ||  (protocol.endsWith("s:") ? 443 : 80);
 		if (opts.soap) {
 			opts.headers = {
-				"Content-Type": "application/soap+xml; charset=utf-8",
+				"Content-Type": "application/soap+xml; charset=utf8",
 				"Content-Length": opts.soap.length
 			};
 			opts.method = "POST";
@@ -1539,7 +1546,7 @@ Trace( "fetch bad protocol", opts );
 				ref => ref.parse$(query) || ref.tag("?",query)
 		}*/
 
-//Trace("FETCH",ref, "=>", opts, query, flags);
+Trace("FETCH",ref, query, flags);
 
 		if ( flags.every )	// regulated fetch
 			switch (opts.protocol) {
