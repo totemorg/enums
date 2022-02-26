@@ -94,7 +94,7 @@ documented in accordance with [jsdoc](https://jsdoc.app/).
     * [.Copy(src, tar, deep)](#module_ENUMS.Copy) ⇒ <code>Object</code>
     * [.Each(A, cb)](#module_ENUMS.Each)
     * [.Stream(src, cb()](#module_ENUMS.Stream)
-    * [.Regulate(opts, taskcb(recs,ctx,res), [feedcb(err,step)])](#module_ENUMS.Regulate) ⇒ <code>Clock</code>
+    * [.Regulate(opts, taskcb(recs), [feedcb(step)])](#module_ENUMS.Regulate) ⇒ <code>Clock</code>
     * [.Fetch(ref, [cb], [cb])](#module_ENUMS.Fetch)
 
 <a name="module_ENUMS.mysqlOpts"></a>
@@ -298,43 +298,35 @@ Serialize a string:
 ```
 <a name="module_ENUMS.Regulate"></a>
 
-### ENUMS.Regulate(opts, taskcb(recs,ctx,res), [feedcb(err,step)]) ⇒ <code>Clock</code>
+### ENUMS.Regulate(opts, taskcb(recs), [feedcb(step)]) ⇒ <code>Clock</code>
 Regulate a task defined by options `opts`
 
-	every 	= NUM [sec||min||hr||...]
+	every 	= "NUM sec||min||hr||... "
 	start	= DATE  
 	end		= DATE  
 	on		= NUM  
-	off		= NUM  			
+	off		= NUM  
 	util	= NUM  
-
 	batch	= INT  
 	limit	= INT  
-	drop	= NUM
 
 with callbacks to
 
-	taskcb( recs, ctx, res ) 
-	to process `recs`-batch in `ctx`-context with `res` saver
-	
-	feedcb( step ) 
-	to feed `recs`-batch to the queue via `step(recs)` 
+	taskcb( recs ) to process a `recs`-batch
+	feedcb( step ) to feed the queue via `step(recs)` 
 
 When a `feedcb` is provided, the mandatory `taskcb` is placed into a 
-stream workflow that terminates when the `recs`-batch goes null.  This 
-`taskcb` *must* call its `res([save])` callback to advance the task; 
-the supplied `ctx`-context is loaded from (and saved into) its json 
-store every time the task is stepped.
+buffered workflow that terminates when the `recs`-batch goes null.  
 
-If no `feedcb` is provided, the `taskcb` is periodically executed with 
-a null `recs`-batch and the callback to `res([save])` is *optional*.
+If no `feedcb` is provided, the `taskcb` is periodically executed (i.e.
+in an unbuffered workflow) using null `recs`-batches.
 
-The regulated task is monitored/managed by the supplied options
+The regulated task is monitored/managed by the supplied options (defaults)
 
-	task 	= notebook being regulated (default "notask")
-	name	= usecase being regulated (default "nocase")
-	client	= task owner (default "system")
-	watch	= QoS task watchdog timer [s]; 0 disabled (default 60)
+	task 	= notebook being regulated ("task")
+	name	= usecase being regulated ("case")
+	client	= task owner ("system")
+	watch	= QoS task watchdog timer [s]; 0 disables (60)
 
 A nonzero QoS sets a tasking watchdog timer to manage the task.  A credit
 deficient client is signalled by calling `feedcb(null)`.
@@ -345,9 +337,9 @@ commitee) before the proposal's start time, the task will be killed.
 
 Regulate uses the following DBs:
 
-	openv.profiles client credit/billing information
-	openv.queues tasking/billing information
-	openv.<task> holds the task context and snapshot state
+	userDB = openv.profiles client credit/billing information
+	taskDB = openv.queues tasking/billing information
+	snapDB = openv.<task> holds the task snapshot context
 
 **Kind**: static method of [<code>ENUMS</code>](#module_ENUMS)  
 **Returns**: <code>Clock</code> - Clock built for regulation options  
@@ -355,8 +347,8 @@ Regulate uses the following DBs:
 | Param | Type | Description |
 | --- | --- | --- |
 | opts | <code>Object</code> | Task regulation options hash |
-| taskcb(recs,ctx,res) | <code>function</code> | Process record batch recs in context ctx then respond using res |
-| [feedcb(err,step)] | <code>function</code> | Feed a record batch recs using step(recs) |
+| taskcb(recs) | <code>function</code> | Process record batch recs |
+| [feedcb(step)] | <code>function</code> | Feed a record batch using step(recs) |
 
 <a name="module_ENUMS.Fetch"></a>
 
@@ -378,24 +370,27 @@ The `ref` url specifies a PROTOCOL
 	notebook	=	selected notebook record
 	lexnex 		=	Lexis-Nexis oauth access to documents
 
-All "${key}" in `ref` are replaced by QUERY[key].  When a file path is 
-"/"-terminated, a folder index is returned.  File paths can contain
-wild-* cards.  Use the FLAGS
+When a file path is "/"-terminated, a folder index is returned.  File paths 
+may also contain wild-* cards.  
 
-	_every 	= NUM "sec||min||hr||..."
+Use the FLAGS
+
+	_every 	= "NUM sec||min||hr||..."
 	_start	= DATE  
 	_end	= DATE  
-	_watch	= NUM  
-	_limit	= INT  
 	_on		= NUM  
 	_off	= NUM  						
 	_util	= NUM  
+
+to regulate the fetch in a job queue with callbacks to the `cb` task.  Use
+the FLAGS
+
+	_watch	= NUM  
 	_task 	= "job task name"
 	_name	= "job case name"
 	_client = "job owner"
 
-to regulate the fetch in a job queue with periodic callbacks to `cb`.  Use 
-the FLAGS
+to monitor the task in the job queues.  Use the FLAGS
 
 	_batch	= NUM
 	_limit	= NUM
@@ -659,7 +654,7 @@ Parse a csv/txt/json stream at the specified path dependings on if the
 keys is
 
 	[] then record keys are determined by the first header record; 
-	[ 'key', 'key', ...] then header keys were preset; 
+	[ 'key', 'key', ... ] then header keys were preset; 
 	null then raw text records are returned; 
 	function then use to parse records.  
 

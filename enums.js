@@ -529,40 +529,32 @@ Legacy Fetching certs
 /**
 Regulate a task defined by options `opts`
 
-	every 	= NUM [sec||min||hr||...]
+	every 	= "NUM sec||min||hr||... "
 	start	= DATE  
 	end		= DATE  
 	on		= NUM  
-	off		= NUM  			
+	off		= NUM  
 	util	= NUM  
-
 	batch	= INT  
 	limit	= INT  
-	drop	= NUM
 
 with callbacks to
 
-	taskcb( recs, ctx, res ) 
-	to process `recs`-batch in `ctx`-context with `res` saver
-	
-	feedcb( step ) 
-	to feed `recs`-batch to the queue via `step(recs)` 
+	taskcb( recs ) to process a `recs`-batch
+	feedcb( step ) to feed the queue via `step(recs)` 
 
 When a `feedcb` is provided, the mandatory `taskcb` is placed into a 
-stream workflow that terminates when the `recs`-batch goes null.  This 
-`taskcb` *must* call its `res([save])` callback to advance the task; 
-the supplied `ctx`-context is loaded from (and saved into) its json 
-store every time the task is stepped.
+buffered workflow that terminates when the `recs`-batch goes null.  
 
-If no `feedcb` is provided, the `taskcb` is periodically executed with 
-a null `recs`-batch and the callback to `res([save])` is *optional*.
+If no `feedcb` is provided, the `taskcb` is periodically executed (i.e.
+in an unbuffered workflow) using null `recs`-batches.
 
-The regulated task is monitored/managed by the supplied options
+The regulated task is monitored/managed by the supplied options (defaults)
 
-	task 	= notebook being regulated (default "notask")
-	name	= usecase being regulated (default "nocase")
-	client	= task owner (default "system")
-	watch	= QoS task watchdog timer [s]; 0 disabled (default 60)
+	task 	= notebook being regulated ("task")
+	name	= usecase being regulated ("case")
+	client	= task owner ("system")
+	watch	= QoS task watchdog timer [s]; 0 disables (60)
 
 A nonzero QoS sets a tasking watchdog timer to manage the task.  A credit
 deficient client is signalled by calling `feedcb(null)`.
@@ -573,22 +565,23 @@ commitee) before the proposal's start time, the task will be killed.
 
 Regulate uses the following DBs:
 
-	openv.profiles client credit/billing information
-	openv.queues tasking/billing information
-	openv.<task> holds the task context and snapshot state 
+	userDB = openv.profiles client credit/billing information
+	taskDB = openv.queues tasking/billing information
+	snapDB = openv.<task> holds the task snapshot context 
 
 @param {Object} opts Task regulation options hash
-@param {Function} taskcb(recs,ctx,res) Process record batch recs in context ctx then respond using res
-@param {Function} [feedcb(err,step)] Feed a record batch recs using step(recs)
+@param {Function} taskcb(recs) Process record batch recs 
+@param {Function} [feedcb(step)] Feed a record batch using step(recs)
 @returns {Clock} Clock built for regulation options
 */
 	Regulate: (opts,taskcb,feedcb) => {
 		// ==================== configuration options
 
 		const
-			snapshots = true,		// enable job snapshots
-			profileDB = "openv.profiles",
-			taskDB = "openv.queues";
+			snapStore = "", 		// "Save_snap" to enable snapshots
+			userDB = "openv.profiles",
+			taskDB = "openv.queues",
+			snapDB = "app.??";
 
 		// ===================== configuration options
 
@@ -621,7 +614,7 @@ Regulate uses the following DBs:
 
 		function startTask( sql, cb ) {
 			sql.query(
-				"SELECT Credit FROM ?? WHERE Client=?", [profileDB, Client], (err,profs) => {
+				"SELECT Credit FROM ?? WHERE Client=?", [userDB, Client], (err,profs) => {
 
 				if ( err ) 
 					Trace("cant start task - check if mysql db started");
@@ -672,17 +665,18 @@ Regulate uses the following DBs:
 
 			sql.query(  			// update clients credit
 				"UPDATE ?? SET Credit=Credit-? WHERE Client=?",
-				[ profileDB, batchesFed, Client ] );
+				[ userDB, jobsTasked, Client ] );
 		}
 
 		function updateTask( sql, taskID ) {
+//Trace("update", taskID, evsTasked, jobsTasked);
 			sql.query(  			// update job queue
 				"UPDATE ?? SET " +
 				"Done=Done+1, " +
 				"Age=datediff(now(),Arrived)*24, " + 
 				"State=Age/Done, " +
 				"ECD=?,Snaps=Snaps+1,Events=?,Batches=? WHERE ID=?", 
-				[ taskDB, clock.next, eventsFed, batchesFed, taskID ] );		// "ECD=date_add(Arrived, interval State*Work hour), "
+				[ taskDB, clock.next, evsTasked, jobsTasked, taskID ] );		// "ECD=date_add(Arrived, interval State*Work hour), "
 		}
 		
 		function traceTask( msg ) {
@@ -691,8 +685,8 @@ Regulate uses the following DBs:
 
 		const
 			{ round } = Math,
-			{ every,start,end,on,off,util,watch,limit,batch,name,client,task,drop } = opts,
-			{ Every,Start,End,On,Off,Util,Watch,Limit,Batch,Name,Client,Task,Drop } = Opts = {
+			{ every,start,end,on,off,util,watch,limit,batch,name,client,task } = opts,
+			{ Every,Start,End,On,Off,Util,Watch,Limit,Batch,Name,Client,Task } = Opts = {
 				// event clocking
 				
 				Every: every+"",					// N[sec||min||...]
@@ -710,15 +704,14 @@ Regulate uses the following DBs:
 
 				// job regulation
 				
-				Drop: drop || 0,
 				Watch: watch || 60,										// [secs]
-				Task: task || taskcb.name || "notask",
-				Name: name || "nocase",
+				Task: task || taskcb.name || "task",
+				Name: name || "case",
 				Client: client || "system"
 			},
 			clock = new Clock( "",Every,On,Off,Start,End );
 
-Trace( "Regulating", clock);
+//Trace( "Regulating", clock);
 		
 		const 
 			jobs = [],
@@ -778,18 +771,17 @@ Trace( "Regulating", clock);
 			watchdog = Watch*1e3 || 0;	// task watchdog interval in msecs (0 disables)
 
 		var							// task metrics
-			snapStore = "Save_snap", // "Save_"+Class,	// snapshot json store
 			watchTask = 0,			// watchdog timer
-			eventsFed = 0,			// # of records routed to taskcb
-			batchesFed = 0,			// # of batches routed to taskcb
-			eventsQueued = 0,		// # of records provided by feedcb
-			batchesQueued = 0;		// # of batches queued by feedcb
+			evsTasked = 0,			// # of records routed to taskcb
+			jobsTasked = 0,			// # of batches routed to taskcb
+			evsQueued = 0,			// # of records provided by feedcb
+			jobsQueued = 0;			// # of batches queued by feedcb
 
 		sqlThread( sql => {
 			startTask( sql, taskID => {
 				function stepTask( idx ) {
 
-					function startSnap( cb ) {
+					function startSnap( cb ) {	// cb(sql,ctx)
 						sqlThread( sql => {
 							sql.query(		// check approval status
 								"SELECT Sign0,Sign1,Sign2,Sign3 FROM ?? WHERE ID=?",
@@ -805,28 +797,38 @@ Trace( "Regulating", clock);
 										cb( sql, null );					// signal task dead
 									}
 
-									else {
+									else
+									if ( snapStore ) {	// provide snapshot context
 										//sql.query("START TRANSACTION");
 										sql.query(
-											`SELECT ${snapStore} AS ctx FROM app.?? WHERE Name=? LIMIT 1`, // + "FOR UPDATE", 
-											[Task,Name], 
+											`SELECT ${snapStore} AS ctx FROM ?? WHERE Name=? LIMIT 1`, // + "FOR UPDATE", 
+											[snapDB,Name], 
 											(err,snaps) => {
 
-//Trace("load snap", err, snaps);
-												if ( err ) 	// nonexitant notebook or snapshot store
+//Trace("load snapshot", err, snaps);
+												if ( err ) 	// signal nonexitant task
 													cb( sql, null );
 
 												else
 												if ( snap = snaps[0] )
-													cb( sql, JSON.parse( snap.ctx ) || {} );
+													try {
+														cb( sql, JSON.parse( snap.ctx ) );
+													}
+												
+													catch (err) {
+														cb( sql, null );
+													}
 
-												else	// usecase does not exist
+												else	// signal usecase does not exist
 													cb( sql, null );
 											});
 									}
+									
+									else	// provide dummy context
+										cb(sql, {});
 								}
 
-								else  	// someone deleted the task
+								else  	// signal task deleted
 									cb( sql, null );
 							});
 						});
@@ -864,56 +866,56 @@ Trace( "Regulating", clock);
 
 					startSnap( (sql,ctx) => {	// load previous snapshot context
 
-//Trace("====step ctx", idx, ctx?true:false);
+//Trace("====step sql", idx, sql?true:false);
 
-						if ( true || ctx ) {			// valid context so step the task
+						if ( ctx ) {			// valid context so step the task
 							const
 								recs = jobs[idx].recs;
 
 							if ( recs ) {	// advance metrics 
 //Trace("====step metrics", idx, "recs", recs.length);
 
-								eventsFed += recs.forEach ? recs.length : 1;
-								batchesFed ++;
-								// traceTask( `drained ${batchesFed} batches ${eventsFed} events` );
+								evsTasked += recs.forEach ? recs.length : 1;
+								//jobsTasked ++;
+								// traceTask( `drained ${jobsTasked} batches ${evsTasked} events` );
 							}
 
-//Trace("====step task",ctx);
-							taskcb( recs, ctx, save => {	// call task then save its snapshot
+							traceTask( `completed ${Math.trunc(100*jobsTasked/jobs.length)}%` );
+							
+							taskcb( recs );
+							
+							if ( ++jobsTasked >= jobs.length ) 		// no more jobs so issue soft halt
+								stopTask( sql, taskID, false );
+							
+							else
+								updateTask( sql, taskID );
+							
+							delete jobs[idx];		// free job records
 
-//Trace("====step start snap",idx);
-								traceTask( `completed ${Math.trunc(100*doneJobs/jobs.length)}%` );
+							/*
+							if ( save ) 	// update and reset snapshot metrics
+								saveSnap(sql,save);
 
-//Trace("task save?", save?true:false);
-								if ( save ) 	// update and reset snapshot metrics
-									saveSnap(sql,save);
+							if ( clock.end && (new Date() >= clock.end) )  		// job past its PoP so issue hard halt
+								stopSnap( sql, ctx, true );
 
-								delete jobs[idx];		// free job records
+							if ( ++jobsTasked >= jobs.length ) 		// no more jobs so issue soft halt
+								stopSnap( sql, ctx, false);
 
-								if ( clock.end && (new Date() >= clock.end) )  		// job past its PoP so issue hard halt
-									stopSnap( sql, ctx, true );
+							else*/
 
-								if ( ++doneJobs >= jobs.length ) 		// no more jobs so issue soft halt
-									stopSnap( sql, ctx, false);
-
-								else
-									updateTask( sql, taskID );
-
-								//sql.query("COMMIT");
-							});	
+							//sql.query("COMMIT");
 						}
 
 						else 					// no context (task rejected) so kill the task
-							stopTask( sql, taskID, true );
+							traceTask( "deleted" );
+							//stopTask( sql, taskID, true );
 
 					});
 				}
 
-				var		// track # jobs completed
-					doneJobs = 0;
-
 				if ( taskID )		// task succesfully started
-					if ( feedcb ) 	// requesting regulated task
+					if ( feedcb ) 	// requesting buffered task
 						feedcb( recs => {	// get a batch of records
 							if ( recs ) {		// queue this record batch
 								const
@@ -955,12 +957,12 @@ Trace( "Regulating", clock);
 										jobs.length )
 								});
 
-								batchesQueued++;
-								eventsQueued += recs.forEach ? recs.length : 1;
-								// traceTask( `queued ${batchesQueued} batches ${eventsQueued} events` );
+								jobsQueued++;
+								evsQueued += recs.forEach ? recs.length : 1;
+								// traceTask( `queued ${jobsQueued} batches ${evsQueued} events` );
 							}
 
-							else {	// prime task and schedule EOS job
+							else {	// prime task and schedule end-of-stream job
 								jobs.push({				// add a job to the task queue
 									recs: null,
 									idx: jobs.length,
@@ -980,7 +982,7 @@ Trace( "Regulating", clock);
 							}
 						} );
 
-					else {			// requesting unregulated task
+					else {			// requesting unbuffered task
 						setTimeout( 
 							idx => {		// initial delay to syncup on requested interval
 								jobs.push({
@@ -989,10 +991,12 @@ Trace( "Regulating", clock);
 									timer: setInterval( 
 											idx => {
 //Trace("unreg task", idx);
-												taskcb( null, jobs[idx], save => {
+												taskcb( null );
+												updateTask(sql,taskID);
+/*												, jobs[idx], save => {
 //Trace("unreg job", clock.tick(), clock.every);
 													updateTask(sql,taskID);
-												});
+												}); */
 											},  
 
 											clock.tick(), 
@@ -1036,24 +1040,27 @@ The `ref` url specifies a PROTOCOL
 	notebook	=	selected notebook record
 	lexnex 		=	Lexis-Nexis oauth access to documents
 
-All "${key}" in `ref` are replaced by QUERY[key].  When a file path is 
-"/"-terminated, a folder index is returned.  File paths can contain
-wild-* cards.  Use the FLAGS
+When a file path is "/"-terminated, a folder index is returned.  File paths 
+may also contain wild-* cards.  
 
-	_every 	= NUM "sec||min||hr||..."
+Use the FLAGS
+
+	_every 	= "NUM sec||min||hr||..."
 	_start	= DATE  
 	_end	= DATE  
-	_watch	= NUM  
-	_limit	= INT  
 	_on		= NUM  
 	_off	= NUM  						
 	_util	= NUM  
+
+to regulate the fetch in a job queue with callbacks to the `cb` task.  Use
+the FLAGS
+
+	_watch	= NUM  
 	_task 	= "job task name"
 	_name	= "job case name"
 	_client = "job owner"
 
-to regulate the fetch in a job queue with periodic callbacks to `cb`.  Use 
-the FLAGS
+to monitor the task in the job queues.  Use the FLAGS
 
 	_batch	= NUM
 	_limit	= NUM
@@ -1255,7 +1262,7 @@ Trace("oauth bad token", token);
 			});
 		}
 		
-		function fetch(res) {
+		function fetch(res) {	// res([...] || {...} || "...")
 			
 			function matchFiles( path, cb ) {
 				const
@@ -1501,7 +1508,7 @@ Trace( "fetch bad protocol", opts );
 		
 		const
 			{certs,maxRetry,maxFiles,sites} = ENUMS,
-			
+			bufferFiles = true,
 			query = {},
 			flags = {},
 			[Path,Name,Type,Area,opts] = (sites[ref] || ref).parsePath(query,{},flags,{}),
@@ -1528,40 +1535,31 @@ Trace( "fetch bad protocol", opts );
 				"Content-Length": opts.soap.length
 			};
 			opts.method = "POST";
+			opts.pathname = 
+				ref => ref.parse$(query) || ref.tag("?",query)
 		}*/
 
 //Trace("FETCH",ref, "=>", opts, query, flags);
 
-		/*
-			opts.pathname = 
-				ref => ref.parse$(query) || ref.tag("?",query)
-		*/
-
 		if ( flags.every )	// regulated fetch
 			switch (opts.protocol) {
-				case "file:":	// regulated record batches
-					Regulate(flags, (recs,ctx,cb) => {	// process records
-						res(recs);
-						cb();
-					}, step => {	// feed records to queue
-						if (step) 
-							if ( Drop )
-								fetch( recs => {
-									if ( random() >= Drop ) step(recs);
-								});
-										
-							else
+				case "file:":	// regulated fetch
+					if (bufferFiles)		// buffered
+						Regulate(flags, res, step => {	// feed records to queue
+							if (step) 
 								fetch(step);
 
-						else
-							Trace("client exhausted credit");
-					} );
+							else
+								Trace("client exhausted credit");
+						} );
+					
+					else					// unbuffered
+						Regulate(flags, recs => fetch( res ));
+
 					break;
 					
-				default:		// regulated http requests
-					Regulate(flags, (recs,ctx,cb) => {
-						fetch(res);
-					});
+				default:		// unbuffered
+					Regulate(flags, recs => fetch( res ));
 			}
 
 		else				// unregulated fetch
@@ -2067,7 +2065,7 @@ Parse a csv/txt/json stream at the specified path dependings on if the
 keys is
 
 	[] then record keys are determined by the first header record; 
-	[ 'key', 'key', ...] then header keys were preset; 
+	[ 'key', 'key', ... ] then header keys were preset; 
 	null then raw text records are returned; 
 	function then use to parse records.  
 
