@@ -384,11 +384,21 @@ Fetch( ref, null, stat => {		// delete request
 ## Array
 
 * [Array](#ENUMS.module_Array)
+    * [~stream()](#ENUMS.module_Array..stream)
+    * [~Extend()](#ENUMS.module_Array..Extend)
     * [~serial(fetch, cb)](#ENUMS.module_Array..serial)
     * [~any(cb)](#ENUMS.module_Array..any) ⇒
     * [~all(cb)](#ENUMS.module_Array..all) ⇒
     * [~get(index, ctx)](#ENUMS.module_Array..get) ⇒ <code>Object</code>
 
+<a name="ENUMS.module_Array..stream"></a>
+
+### Array~stream()
+**Kind**: inner method of [<code>Array</code>](#ENUMS.module_Array)  
+<a name="ENUMS.module_Array..Extend"></a>
+
+### Array~Extend()
+**Kind**: inner method of [<code>Array</code>](#ENUMS.module_Array)  
 <a name="ENUMS.module_Array..serial"></a>
 
 ### Array~serial(fetch, cb)

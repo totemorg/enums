@@ -1580,6 +1580,8 @@ Trace("FETCH",ref, query, flags);
 @module ENUMS.Array
 */
 Copy({
+/**
+*/
 	stream: function (cb) {
 		const
 			calls = this.length,
@@ -1601,6 +1603,8 @@ Copy({
 		if ( !calls ) cb( null, msgs );		
 	},
 	
+/**
+*/
 	Extend: function (con) {
 		this.forEach( function (proto) {
 			//console.log("ext", proto.name, con);
