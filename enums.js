@@ -79,7 +79,7 @@ documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 const
 	{ 	
 		operators, getList, Regulate,
-		Debug, Copy, Each, typeOf, Stream, Trace, Fetch, Log,
+		Debug, Copy, Each, typeOf, Trace, Fetch, Log,
 	 	isArray, isObject, isString, isFunction, isEmpty,
 		mysqlLogin, neo4jLogin, txmailLogin, rxmailLogin,
 		mysqlOpts, neo4jOpts, rxmailOpts, txmailOpts
@@ -384,7 +384,7 @@ Enumerate Object A over its keys with callback cb(key,val).
 		Object.keys(A).forEach( key => cb( key, A[key] ) );
 	},
 	
-/**	 
+/*
 Stream a src array, object or file using:
 
 	Stream(src, opts, (rec,key,res) => {
@@ -404,7 +404,7 @@ Serialize a list:
 	function fetcher( rec, info => { 
 	});
 
-	[ rec, ...].serialize( fetcher, (rec, fails) => {
+	[ rec, ...].serial( fetcher, (rec, fails) => {
 		if ( rec ) 
 			// rec = record being serialized
 		else
@@ -420,11 +420,12 @@ Serialize a string:
 		return "replaced string";
 	});
 
-	"string to search".serialize( fetcher, regex, "placeholder key", str => { 
+	"string to search".serial( fetcher, regex, "placeholder key", str => { 
 		// str = final string with all replacements made
 	});
 
 */
+	/*
 	Stream: (src,opts,cb) => {
 		
 		var
@@ -453,12 +454,12 @@ Serialize a string:
 				cb( rec, key, msg => {
 					if ( msg != undefined ) 
 						msgs.push( msg );
-						/*
+						/ *
 						if ( A.forEach ) 
 							msgs.push( msg );
 						else
 							msgs[key] = msg;
-						*/
+						* /
 
 					if ( ++returns == calls ) // signal end
 						cb( null, msgs );
@@ -467,7 +468,7 @@ Serialize a string:
 
 			if ( !calls ) cb( null, msgs );
 		}
-	},
+	}, */
 
 	Clock: Clock,
 
@@ -1579,6 +1580,27 @@ Trace("FETCH",ref, query, flags);
 @module ENUMS.Array
 */
 Copy({
+	stream: function (cb) {
+		const
+			calls = this.length,
+			msgs = [];
+		
+		var 
+			returns = 0;
+
+		this.forEach( (rec,key) => {
+			cb( rec, key, msg => {
+				if ( msg != undefined ) 
+					msgs[key] = msg;
+
+				if ( ++returns == calls ) // signal end
+					cb( null, msgs );
+			});
+		});
+
+		if ( !calls ) cb( null, msgs );		
+	},
+	
 	Extend: function (con) {
 		this.forEach( function (proto) {
 			//console.log("ext", proto.name, con);
@@ -1589,13 +1611,14 @@ Copy({
 /**
 Serialize an Array to the callback cb(rec,info) or cb(null,stack) at end given 
 a sync/async fetcher( rec, res ).
-@param {function} fetched Callback to fetch the data sent to the cb
+@param {function} fetch Callback to fetch the data sent to the cb
 @param {function} cb Callback to process the fetched data.	
 */
-	serialize: function (fetcher, cb) {
-		Stream( this, {}, (rec, key, res) => {
+	serial: function (fetch, cb) {
+		//Stream( this, {}, (rec, key, res) => {
+		this.stream( (rec, key, res) => {
 			if ( res )
-				fetcher( rec, info => {
+				fetch( rec, info => {
 					cb(rec, info);	// forward results
 					res();	// signal record processed w/o stacking any results
 				});	
@@ -1738,6 +1761,24 @@ The "!where" clause returns only records having a nonzero eval.
 @module ENUMS.String
 */
 Copy({
+	stream: function (opts,cb) {
+		const
+			msgs = []; 
+		
+		this.streamFile( opts, recs => {
+			if ( recs )
+				recs.forEach( (rec,idx) => {
+					cb( rec, idx, msg => {
+						if ( msg != undefined ) 
+							msgs.push( msg );
+					});
+				});
+
+			else 	// signal end
+				cb(null, msgs);
+		});		
+	},
+	
 /**
 */
 	replaceSync: function ( pat, cb ) {
@@ -2282,13 +2323,13 @@ key to back-substitute results.
 @example
 
 	"junkabc;junkdef;"
-	.serialize( (rec,cb) => cb("$"), /junk([^;]*);/g, "@tag", msg => console.log(msg) )
+	.serial( (rec,cb) => cb("$"), /junk([^;]*);/g, "@tag", msg => console.log(msg) )
 
 produces:
 
 	"$$"
 */
-	serialize: function ( fetcher, regex, key, cb ) {  //< callback cb(str) after replacing regex using fetcher( rec, (ex) => "replace" ) and string place holder key
+	serial: function ( fetcher, regex, key, cb ) {  //< callback cb(str) after replacing regex using fetcher( rec, (ex) => "replace" ) and string place holder key
 		var 
 			recs = [],
 			results = this.replace( regex, (arg0, arg1, arg2, arg3, arg4) => {  // put in place-holders
@@ -2296,7 +2337,7 @@ produces:
 				return key+(recs.length-1);
 			});
 
-		recs.serialize( fetcher, (rec,info) => {  // update place-holders with info 
+		recs.serial( fetcher, (rec,info) => {  // update place-holders with info 
 			if (rec) 
 				results = results.replace( key+rec.ID, str => info );
 

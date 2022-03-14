@@ -93,7 +93,6 @@ documented in accordance with [jsdoc](https://jsdoc.app/).
     * [.getList()](#module_ENUMS.getList)
     * [.Copy(src, tar, deep)](#module_ENUMS.Copy) ⇒ <code>Object</code>
     * [.Each(A, cb)](#module_ENUMS.Each)
-    * [.Stream(src, cb()](#module_ENUMS.Stream)
     * [.Regulate(opts, taskcb(recs), [feedcb(step)])](#module_ENUMS.Regulate) ⇒ <code>Clock</code>
     * [.Fetch(ref, [cb], [cb])](#module_ENUMS.Fetch)
 
@@ -248,54 +247,6 @@ Enumerate Object A over its keys with callback cb(key,val).
 | A | <code>Object</code> | source object |
 | cb | <code>function</code> | callback (key,val) |
 
-<a name="module_ENUMS.Stream"></a>
-
-### ENUMS.Stream(src, cb()
-Stream a src array, object or file using:
-
-	Stream(src, opts, (rec,key,res) => {
-		if ( res ) // still streaming 
-			res( msg || undefined )  // pass undefined to bypass msg stacking
-
-		else 
-			// streaming done so key contains msg stack
-	})
-
-**Kind**: static method of [<code>ENUMS</code>](#module_ENUMS)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| src | <code>Object</code> \| <code>Array</code> \| <code>String</code> | source object or array |
-| cb( | <code>function</code> | rec || null, key, res ) Callback |
-
-**Example**  
-```js
-Serialize a list:
-
-	function fetcher( rec, info => { 
-	});
-
-	[ rec, ...].serialize( fetcher, (rec, fails) => {
-		if ( rec ) 
-			// rec = record being serialized
-		else
-			// done. fails = number of failed fetches
-	}
-```
-**Example**  
-```js
-Serialize a string:
-
-	function fetcher( rec, ex => {
-		// regexp arguments rec.arg0, rec.arg1, rec.arg2, ...
-		// rec.ID = record number being processed
-		return "replaced string";
-	});
-
-	"string to search".serialize( fetcher, regex, "placeholder key", str => { 
-		// str = final string with all replacements made
-	});
-```
 <a name="module_ENUMS.Regulate"></a>
 
 ### ENUMS.Regulate(opts, taskcb(recs), [feedcb(step)]) ⇒ <code>Clock</code>
@@ -433,14 +384,14 @@ Fetch( ref, null, stat => {		// delete request
 ## Array
 
 * [Array](#ENUMS.module_Array)
-    * [~serialize(fetched, cb)](#ENUMS.module_Array..serialize)
+    * [~serial(fetch, cb)](#ENUMS.module_Array..serial)
     * [~any(cb)](#ENUMS.module_Array..any) ⇒
     * [~all(cb)](#ENUMS.module_Array..all) ⇒
     * [~get(index, ctx)](#ENUMS.module_Array..get) ⇒ <code>Object</code>
 
-<a name="ENUMS.module_Array..serialize"></a>
+<a name="ENUMS.module_Array..serial"></a>
 
-### Array~serialize(fetched, cb)
+### Array~serial(fetch, cb)
 Serialize an Array to the callback cb(rec,info) or cb(null,stack) at end given 
 a sync/async fetcher( rec, res ).
 
@@ -448,7 +399,7 @@ a sync/async fetcher( rec, res ).
 
 | Param | Type | Description |
 | --- | --- | --- |
-| fetched | <code>function</code> | Callback to fetch the data sent to the cb |
+| fetch | <code>function</code> | Callback to fetch the data sent to the cb |
 | cb | <code>function</code> | Callback to process the fetched data. |
 
 <a name="ENUMS.module_Array..any"></a>
@@ -551,7 +502,7 @@ The "!where" clause returns only records having a nonzero eval.
     * [~parseFile(path, opts, cb)](#ENUMS.module_String..parseFile)
     * [~streamFile(path, opts, cb)](#ENUMS.module_String..streamFile)
     * [~trace(msg, req, res)](#ENUMS.module_String..trace)
-    * [~serialize()](#ENUMS.module_String..serialize)
+    * [~serial()](#ENUMS.module_String..serial)
     * [~get()](#ENUMS.module_String..get)
 
 <a name="ENUMS.module_String..replaceSync"></a>
@@ -697,9 +648,9 @@ Trace message to console with optional request to place into syslogs
 | req | <code>Object</code> | request { sql, query, client, action, table } |
 | res | <code>function</code> | response callback(msg) |
 
-<a name="ENUMS.module_String..serialize"></a>
+<a name="ENUMS.module_String..serial"></a>
 
-### String~serialize()
+### String~serial()
 Serialize this String to the callback(results) given a sync/asyn fetcher(rec,res) where
 rec = {ID, arg0, arg1, ...} contains args produced by regex.  Provide a unique placeholder
 key to back-substitute results.
@@ -708,7 +659,7 @@ key to back-substitute results.
 **Example**  
 ```js
 "junkabc;junkdef;"
-	.serialize( (rec,cb) => cb("$"), /junk([^;]*);/g, "@tag", msg => console.log(msg) )
+	.serial( (rec,cb) => cb("$"), /junk([^;]*);/g, "@tag", msg => console.log(msg) )
 
 produces:
 
