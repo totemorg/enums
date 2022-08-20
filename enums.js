@@ -2631,6 +2631,7 @@ async function LexisNexisTest(N,endpt,R,cb) {
 }
 
 switch (process.argv[2]) {	//< unit testers
+	case "$":
 	case "E$":
 		Trace("$", {
 			usage: "node enum.js [E$ || En || ELNn || EXn ...]",
