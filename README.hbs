@@ -5,11 +5,10 @@ to required services: mysql, neo4j, txmail, rxmail.
 
 ## Installation
 
-Simply clone **ENUMS** from one of its repos:
+Clone **ENUMS** from one of its REPOs:
 
-	git clone https://github.com/totemstan/enums
-	git clone https://sc.appdev.proj.coe/acmesds/enums
-	git clone https://gitlab.west.nga.ic.gov/acmesds/enums
+	cd MYPROJECT
+	git clone REPO/totemstan/enums
 
 ## Manage 
 
