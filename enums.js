@@ -2631,31 +2631,26 @@ async function LexisNexisTest(N,endpt,R,cb) {
 }
 
 switch (process.argv[2]) {	//< unit testers
-	case "?":
-	case "E?":
-	case "EHELP":
-		Trace("node enum.js [E$ || En || ELNn || EXn ...]");
-		Trace("logins", {
-			mysql: mysqlLogin,
-			neo4j: neo4jLogin,
-			txmail: txmailLogin,
-			rxmail: rxmailLogin
-		});
-		Trace("connections", {
-			mysql: mysqlCon ? true : false,
-			neo4j: neo4jCon  ? true : false,
-			txmail: txmailCon ? true : false,
-			rxmail: rxmailCon ? true : false
-		});
-
-		break;
-		
 	case "E$":
-	case "EDEBUG":
+		Trace("$", {
+			usage: "node enum.js [E$ || En || ELNn || EXn ...]",
+			logins: {
+				mysql: mysqlLogin,
+				neo4j: neo4jLogin,
+				txmail: txmailLogin,
+				rxmail: rxmailLogin
+			},
+			connections: {
+				mysql: mysqlCon ? true : false,
+				neo4j: neo4jCon  ? true : false,
+				txmail: txmailCon ? true : false,
+				rxmail: rxmailCon ? true : false
+			}});
+
 		Debug();
 		break;
 
-	case "E1": 
+	case "ECOPY": 
 		Trace("test", {
 			shallowCopy: Copy( {a:1,b:2}, {} ),
 			deepCopy: Copy({ a:1,"b.x":2 }, {b:{x:100}}, ".")
