@@ -1,6 +1,6 @@
 # ENUMS [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)
 
-Provides methods to clock, fetch, enumerate, stream, fetch and get data.  Also makes connections
+Provides methods to clock, fetch, enumerate, stream, get, and regulate data.  Also makes connections
 to required services: mysql, neo4j, txmail, rxmail.
 
 ## Installation
