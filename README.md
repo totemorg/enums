@@ -10,17 +10,33 @@ Clone **ENUMS** from one of its REPOs:
 	cd MYPROJECT
 	git clone REPO/totemstan/enums
 
-## Manage 
+To configure and maintain **ENUMS**:
 
-	npm test [ ? || E1 || ...]	# Run unit test
-	npm run redoc						# Update and distribute documentation
+	npm test [ ? | ...]			# Unit test
+	npm run redoc				# Update and distribute documentation
 
 ## Usage
 
-From your module:
+Require and optionally configure **ENUMS** as follows:
 
-	const { Copy, Each, Extend, Stream, Fetch, ... } = require("./enums");  	// extract required methods
-	
+	const { Copy, Each, Extend, Stream, Fetch, ... } = require("./enums").config({
+		key: value, 						// set key
+		"key.key": value, 					// indexed set
+		"key.key.": value					// indexed append
+	});
+
+where its configuration keys (
+[WWW](http://totem.zapto.org/shares/prm/totem/index.html) 
+[COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) 
+[SBU](https://totem.nga.mil/shares/prm/totem/index.html)
+)
+follow the **ENUMS** deep copy conventions (
+[WWW](https://github.com/totemstan/enum) 
+[COE](https://sc.appdev.proj.coe/acmesds/enum) 
+[SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
+).
+See the Program Reference for examples.
+
 ## Program Reference
 <details>
 <summary>
@@ -70,7 +86,7 @@ documented in accordance with [jsdoc](https://jsdoc.app/).
 	URL_RSSFEED = URL to rss service w user/password credentials
 	URL_LEXNEX = URL to lexis-nexis service w user/password credentials
 
-**Requires**: <code>module:os</code>, <code>module:cluster</code>, <code>module:fs</code>, <code>module:http</code>, <code>module:https</code>, <code>module:vm</code>, <code>module:cp</code>, <code>module:crypto</code>, <code>module:stream</code>, <code>module:mysql</code>, <code>module:neo4j-driver</code>, <code>module:nodemailer</code>, <code>module:nodemailer-smtp-transport</code>, <code>module:neo4j-driver</code>  
+**Requires**: <code>module:[os](https://nodejs.org/docs/latest/api/)</code>, <code>module:[cluster](https://nodejs.org/docs/latest/api/)</code>, <code>module:[fs](https://nodejs.org/docs/latest/api/)</code>, <code>module:[http](https://nodejs.org/docs/latest/api/)</code>, <code>module:[https](https://nodejs.org/docs/latest/api/)</code>, <code>module:[vm](https://nodejs.org/docs/latest/api/)</code>, <code>module:[cp](https://nodejs.org/docs/latest/api/)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>, <code>module:[stream](https://nodejs.org/docs/latest/api/)</code>, <code>module:[mysql](https://www.npmjs.com/package/mysql)</code>, <code>module:[neo4j-driver](tbd)</code>, <code>module:[nodemailer](tbd)</code>, <code>module:[nodemailer-smtp-transport](tbd)</code>  
 **Author**: [ACMESDS](https://totemstan.github.io)  
 
 * [ENUMS](#module_ENUMS)
@@ -85,7 +101,7 @@ documented in accordance with [jsdoc](https://jsdoc.app/).
     * [.maxFiles](#module_ENUMS.maxFiles)
     * [.maxRetry](#module_ENUMS.maxRetry)
     * [.certs](#module_ENUMS.certs)
-    * [.Debug()](#module_ENUMS.Debug)
+    * [.Start(host, cbs)](#module_ENUMS.Start)
     * [.Trace()](#module_ENUMS.Trace)
     * [.config(opts)](#module_ENUMS.config)
     * [.typeOf()](#module_ENUMS.typeOf)
@@ -167,10 +183,18 @@ Fetch wget/curl maxRetry
 Legacy Fetching certs
 
 **Kind**: static property of [<code>ENUMS</code>](#module_ENUMS)  
-<a name="module_ENUMS.Debug"></a>
+<a name="module_ENUMS.Start"></a>
 
-### ENUMS.Debug()
+### ENUMS.Start(host, cbs)
+Start the command prompter for the hosting module with callback to initializer.
+
 **Kind**: static method of [<code>ENUMS</code>](#module_ENUMS)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| host | <code>String</code> | Name of hosting module |
+| cbs | <code>Array</code> | List of initializer callbacks (ctx defines context to run command) |
+
 <a name="module_ENUMS.Trace"></a>
 
 ### ENUMS.Trace()
