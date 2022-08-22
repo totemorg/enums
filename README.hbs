@@ -19,7 +19,7 @@ To configure and maintain **ENUMS**:
 
 Require and optionally configure **ENUMS** as follows:
 
-	const { Copy, Each, Extend, Stream, Fetch, ... } = require("./enums").config({
+	const { Copy, Each, Extend, Stream, Fetch, ... } = require("enums").config({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
 		"key.key.": value					// indexed append
