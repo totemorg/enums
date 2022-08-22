@@ -435,7 +435,7 @@ Serialize a list:
 	}
 
 @example
-Serialize a string:
+### Serialize a string:
 
 	function fetcher( rec, ex => {
 		// regexp arguments rec.arg0, rec.arg1, rec.arg2, ...
