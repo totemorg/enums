@@ -60,26 +60,26 @@ documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @module ENUMS
 @author [ACMESDS](https://totemstan.github.io)
 
-@requires os
-@requires cluster
-@requires fs
-@requires http
-@requires https
-@requires vm
-@requires cp
-@requires crypto
-@requires stream
-@requires mysql
-@requires neo4j-driver
-@requires nodemailer
-@requires nodemailer-smtp-transport
-@requires neo4j-driver
+@requires [os](https://nodejs.org/docs/latest/api/)
+@requires [cluster](https://nodejs.org/docs/latest/api/)
+@requires [fs](https://nodejs.org/docs/latest/api/)
+@requires [http](https://nodejs.org/docs/latest/api/)
+@requires [https](https://nodejs.org/docs/latest/api/)
+@requires [vm](https://nodejs.org/docs/latest/api/)
+@requires [cp](https://nodejs.org/docs/latest/api/)
+@requires [crypto](https://nodejs.org/docs/latest/api/)
+@requires [stream](https://nodejs.org/docs/latest/api/)
+
+@requires [mysql](https://www.npmjs.com/package/mysql)
+@requires [neo4j-driver](tbd)
+@requires [nodemailer](tbd)
+@requires [nodemailer-smtp-transport](tbd)
 
 */
 const
 	{ 	
 		operators, getList, Regulate,
-		Debug, Copy, Each, typeOf, Trace, Fetch, Log,
+		Start, Copy, Each, typeOf, Trace, Fetch, Log,
 	 	isArray, isObject, isString, isFunction, isEmpty,
 		mysqlLogin, neo4jLogin, txmailLogin, rxmailLogin,
 		mysqlOpts, neo4jOpts, rxmailOpts, txmailOpts
@@ -130,9 +130,17 @@ const
 	escape: MYSQL.escape,
 
 /**
+Start the command prompter for the hosting module with callback to initializer.
+
+@param {String} host Name of hosting module
+@param {Array} cbs List of initializer callbacks (ctx defines context to run command)
 */
-	Debug: (ctx,res) => {
+	Start: (host,cbs) => {
+		
 		const
+			[x,mod,opt] = process.argv,
+			init = cbs ? cbs[opt] : null,
+			{ctx,res} = cbs || {},
 			VM = require("vm"),
 			def = cmd => console.log(`
 @example
@@ -142,20 +150,34 @@ This:
 
 produces:
 `);
-
-		require("repl").start({
-			eval: ctx 
-				? (cmd, CTX, filename, cb) => {
-					cb( null, VM.runInContext( cmd, VM.createContext(ctx) ) ); 
-					if (res) res(cmd);
-				}			
-				: null,
-
-			prompt: "$> ", 
-			useGlobal: true	// seems to ignore - ctx always "global" but never truely *global*
-		});	
+		//console.log(process.argv, host, mod, CLUSTER.isMaster);
 		
-		return ctx;
+		if ( CLUSTER.isMaster && mod.endsWith(host+".js") ) {
+			
+			if ( opt == "?" ) {
+				const opts = Object.keys(cbs||{}).join("|");
+				Trace( `Usage: node ${host} ${opts}` );
+			}
+			
+			else
+			if (init)
+				require("repl").start({
+					eval: ctx 
+						? (cmd, CTX, filename, cb) => {
+							cb( null, VM.runInContext( cmd, VM.createContext(ctx) ) ); 
+							if (res) res(cmd);
+						}			
+						: null,
+
+					prompt: "$> ", 
+					useGlobal: true	// seems to ignore - ctx always "global" but never truely *global*
+				});	
+			
+			else
+			if (opt)
+				Trace( `Invalid Start() option ${opt}` );
+			
+		}
 	},
 	
 /**
@@ -173,6 +195,7 @@ Configure enums
 */
 	config: opts => {
 		if ( opts ) Copy( opts, ENUMS, "." );
+		return ENUMS;
 	},
 	
 /**
@@ -2630,11 +2653,9 @@ async function LexisNexisTest(N,endpt,R,cb) {
 		});
 }
 
-switch (process.argv[2]) {	//< unit testers
-	case "$":
-	case "E$":
-		Trace("$", {
-			usage: "node enum.js [E$ || En || ELNn || EXn ...]",
+Start("enums", {
+	"??": () => 
+		Trace("$", JSON.stringify({
 			logins: {
 				mysql: mysqlLogin,
 				neo4j: neo4jLogin,
@@ -2646,31 +2667,25 @@ switch (process.argv[2]) {	//< unit testers
 				neo4j: neo4jCon  ? true : false,
 				txmail: txmailCon ? true : false,
 				rxmail: rxmailCon ? true : false
-			}});
-
-		Debug();
-		break;
-
-	case "ECOPY": 
-		Trace("test", {
+			}
+		})),
+	  
+	ECOPY: () =>
+	  	Trace("test", {
 			shallowCopy: Copy( {a:1,b:2}, {} ),
 			deepCopy: Copy({ a:1,"b.x":2 }, {b:{x:100}}, ".")
-		});
-		break;
-		
-	case "ELN1":
-		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph');
-		break;
-		
-	case "ELN2":
-		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph&$expand=Document');
-		break;
-
-	case "ELN3":
-		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph');
-		break;
+		}),
 			
-	case "ELN4":
+	ELN1: () =>
+		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph'),
+		
+	ELN2: () =>
+		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph&$expand=Document'),
+		
+	ELN3: () =>
+		LexisNexisTest(1e3, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph'),
+		
+	ELN4: () =>
 		LexisNexisTest(1, 'lex://services-api.lexisnexis.com/v1/News?$search=rudolph', 0, res => {
 			//Trace("res=>", res);
 			var r = JSON.parse(res);
@@ -2683,16 +2698,14 @@ switch (process.argv[2]) {	//< unit testers
 				Trace( "doc", doc );
 			});
 			
-		});
-		break;
-
-	case "ELN5":
+		}),
+		
+	ELN5: () =>
 		Fetch( 'lexis://services-api.lexisnexis.com/v1/News?$search=rudolph', doc => {
 			Trace( "doc", doc );
-		});
-		break;
+		}),
 		
-	case "EX1":
+	EX1: () => 
 		"testabc; testdef;".replaceSync(/test(.*?);/g, (args,cb) => {
 			
 			if ( cb ) {
@@ -2702,10 +2715,9 @@ switch (process.argv[2]) {	//< unit testers
 			
 			else
 				console.log("final", args);
-		});
-		break;
-	
-	case "EX2":
+		}),
+		
+	EX2: () =>
 		"testabc; testdef;".replaceSync(/test(.*?);/g, (args,cb) => {
 			//console.log(args);
 			
@@ -2718,8 +2730,7 @@ switch (process.argv[2]) {	//< unit testers
 			
 			else
 				console.log("final", args); 
-		});
-		break;		
-}
+		})
+});
 
 // UNCLASSIFIED
