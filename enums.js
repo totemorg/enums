@@ -71,9 +71,9 @@ documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 @requires [stream](https://nodejs.org/docs/latest/api/)
 
 @requires [mysql](https://www.npmjs.com/package/mysql)
-@requires [neo4j-driver](tbd)
-@requires [nodemailer](tbd)
-@requires [nodemailer-smtp-transport](tbd)
+@requires [neo4j-driver](https://www.npmjs.com/package/neo4j-driver)
+@requires [nodemailer](https://www.npmjs.com/package/nodemailer)
+@requires [nodemailer-smtp-transport](https://www.npmjs.com/package/nodemailer-smtp-transport)
 
 */
 const
@@ -150,33 +150,40 @@ This:
 
 produces:
 `);
-		//console.log(process.argv, host, mod, CLUSTER.isMaster);
+		// console.log(process.argv, [opt, host, mod, CLUSTER.isMaster]);
 		
 		if ( CLUSTER.isMaster && mod.endsWith(host+".js") ) {
 			
-			if ( opt == "?" ) {
-				const opts = Object.keys(cbs||{}).join("|");
-				Trace( `Usage: node ${host} ${opts}` );
+			switch (opt || "") {
+				case "?": 
+					const opts = Object.keys(cbs||{}).join("|");
+					Trace( `Usage: node ${host} ${opts}` );
+					return;
+					
+				case "":
+				case "$":
+					break;
+					
+				default:
+					if (init)
+						init();
+					
+					else
+						Trace( `Invalid Start() option ${opt}` );
 			}
 			
-			else
-			if (init)
-				require("repl").start({
-					eval: ctx 
-						? (cmd, CTX, filename, cb) => {
-							cb( null, VM.runInContext( cmd, VM.createContext(ctx) ) ); 
-							if (res) res(cmd);
-						}			
-						: null,
+			require("repl").start({
+				eval: ctx 
+					? (cmd, CTX, filename, cb) => {
+						cb( null, VM.runInContext( cmd, VM.createContext(ctx) ) ); 
+						if (res) res(cmd);
+					}			
+					: null,
 
-					prompt: "$> ", 
-					useGlobal: true	// seems to ignore - ctx always "global" but never truely *global*
-				});	
-			
-			else
-			if (opt)
-				Trace( `Invalid Start() option ${opt}` );
-			
+				prompt: "$> ", 
+				useGlobal: true	// seems to ignore - ctx always "global" but never truely *global*
+			});	
+
 		}
 	},
 	
@@ -2655,7 +2662,7 @@ async function LexisNexisTest(N,endpt,R,cb) {
 
 Start("enums", {
 	"??": () => 
-		Trace("$", JSON.stringify({
+		Trace("", JSON.stringify({
 			logins: {
 				mysql: mysqlLogin,
 				neo4j: neo4jLogin,
@@ -2671,7 +2678,7 @@ Start("enums", {
 		})),
 	  
 	ECOPY: () =>
-	  	Trace("test", {
+	  	Trace("", {
 			shallowCopy: Copy( {a:1,b:2}, {} ),
 			deepCopy: Copy({ a:1,"b.x":2 }, {b:{x:100}}, ".")
 		}),

@@ -10,14 +10,16 @@ Clone **ENUMS** from one of its REPOs:
 	cd MYPROJECT
 	git clone REPO/totemstan/enums
 
-To configure and maintain **ENUMS**:
+To start and manage **ENUMS**:
 
-	npm test [ ? | ...]			# Unit test
-	npm run redoc				# Update and distribute documentation
+	npm run start [ ? | $ | ...]	# Unit test
+	npm run verminor				# Roll minor version
+	npm run vermajor				# Roll major version
+	npm run redoc					# Regen documentation
 
 ## Usage
 
-Require and optionally configure **ENUMS** as follows:
+Acquire and optionally configure **ENUMS** as follows:
 
 	const { Copy, Each, Extend, Stream, Fetch, ... } = require("enums").config({
 		key: value, 						// set key

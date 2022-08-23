@@ -10,14 +10,16 @@ Clone **ENUMS** from one of its REPOs:
 	cd MYPROJECT
 	git clone REPO/totemstan/enums
 
-To configure and maintain **ENUMS**:
+To start and manage **ENUMS**:
 
-	npm test [ ? | ...]			# Unit test
-	npm run redoc				# Update and distribute documentation
+	npm run start [ ? | $ | ...]	# Unit test
+	npm run verminor				# Roll minor version
+	npm run vermajor				# Roll major version
+	npm run redoc					# Regen documentation
 
 ## Usage
 
-Require and optionally configure **ENUMS** as follows:
+Acquire and optionally configure **ENUMS** as follows:
 
 	const { Copy, Each, Extend, Stream, Fetch, ... } = require("enums").config({
 		key: value, 						// set key
@@ -86,7 +88,7 @@ documented in accordance with [jsdoc](https://jsdoc.app/).
 	URL_RSSFEED = URL to rss service w user/password credentials
 	URL_LEXNEX = URL to lexis-nexis service w user/password credentials
 
-**Requires**: <code>module:[os](https://nodejs.org/docs/latest/api/)</code>, <code>module:[cluster](https://nodejs.org/docs/latest/api/)</code>, <code>module:[fs](https://nodejs.org/docs/latest/api/)</code>, <code>module:[http](https://nodejs.org/docs/latest/api/)</code>, <code>module:[https](https://nodejs.org/docs/latest/api/)</code>, <code>module:[vm](https://nodejs.org/docs/latest/api/)</code>, <code>module:[cp](https://nodejs.org/docs/latest/api/)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>, <code>module:[stream](https://nodejs.org/docs/latest/api/)</code>, <code>module:[mysql](https://www.npmjs.com/package/mysql)</code>, <code>module:[neo4j-driver](tbd)</code>, <code>module:[nodemailer](tbd)</code>, <code>module:[nodemailer-smtp-transport](tbd)</code>  
+**Requires**: <code>module:[os](https://nodejs.org/docs/latest/api/)</code>, <code>module:[cluster](https://nodejs.org/docs/latest/api/)</code>, <code>module:[fs](https://nodejs.org/docs/latest/api/)</code>, <code>module:[http](https://nodejs.org/docs/latest/api/)</code>, <code>module:[https](https://nodejs.org/docs/latest/api/)</code>, <code>module:[vm](https://nodejs.org/docs/latest/api/)</code>, <code>module:[cp](https://nodejs.org/docs/latest/api/)</code>, <code>module:[crypto](https://nodejs.org/docs/latest/api/)</code>, <code>module:[stream](https://nodejs.org/docs/latest/api/)</code>, <code>module:[mysql](https://www.npmjs.com/package/mysql)</code>, <code>module:[neo4j-driver](https://www.npmjs.com/package/neo4j-driver)</code>, <code>module:[nodemailer](https://www.npmjs.com/package/nodemailer)</code>, <code>module:[nodemailer-smtp-transport](https://www.npmjs.com/package/nodemailer-smtp-transport)</code>  
 **Author**: [ACMESDS](https://totemstan.github.io)  
 
 * [ENUMS](#module_ENUMS)
