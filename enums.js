@@ -156,7 +156,7 @@ produces:
 			
 			switch (opt || "") {
 				case "?": 
-					const opts = Object.keys(cbs||{}).join("|");
+					const opts = ["?","$"].concat(Object.keys(cbs||{})).join("|");
 					Trace( `Usage: node ${host} ${opts}` );
 					return;
 					
@@ -172,17 +172,36 @@ produces:
 						Trace( `Invalid Start() option ${opt}` );
 			}
 			
-			require("repl").start({
-				eval: ctx 
-					? (cmd, CTX, filename, cb) => {
-						cb( null, VM.runInContext( cmd, VM.createContext(ctx) ) ); 
-						if (res) res(cmd);
-					}			
-					: null,
+			if ( ctx || res )
+				require("repl").start({
+					eval: (cmd, CTX, filename, cb) => {
+						cmd = cmd.replace(/\n/g,"");
+						
+						if ( !cmd ) return;
+												
+						if ( cmd.startsWith("<") ) 
+							try {
+								cmd = FS.readFileSync("./"+cmd.substr(1),"utf-8");
+								console.log(cmd);
+							}
 
-				prompt: "$> ", 
-				useGlobal: true	// seems to ignore - ctx always "global" but never truely *global*
-			});	
+							catch (err) {
+								console.log("no such file", err);
+								cmd = "";
+							}
+
+						if ( ctx ) cb( null, VM.runInContext( cmd, VM.createContext(ctx) ) ); 
+						if ( res ) res(cmd);
+					},
+					prompt: "$> ", 
+					useGlobal: true	// seems to ignore - ctx always "global" but never truely *global*
+				});
+			
+			else
+				require("repl").start({
+					prompt: "$> ", 
+					useGlobal: true	
+				});
 
 		}
 	},
