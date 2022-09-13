@@ -182,7 +182,6 @@ produces:
 						if ( cmd.startsWith("<") ) 
 							try {
 								cmd = FS.readFileSync("./"+cmd.substr(1),"utf-8");
-								console.log(cmd);
 							}
 
 							catch (err) {
