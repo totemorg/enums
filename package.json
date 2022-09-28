@@ -7,7 +7,7 @@
     "verminor": "npm version minor -f",
     "vermajor": "npm version major -f",
     "start": "node enums.js ",
-    "redoc": "jsdoc2md --template README.hbs --files enums.js >README.md; git commit -am 'redoc'; git  push agent master"
+    "redoc": "jsdoc2md --template README.hbs --files enums.js >README.md; git commit -am 'redoc'; git  push man master"
   },
   "repository": {
     "type": "git",
