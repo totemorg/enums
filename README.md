@@ -1,4 +1,4 @@
-# ENUMS [WWW](https://github.com/totemstan/enums)  [COE](https://sc.appdev.proj.coe/acmesds/enums)  [SBU](https://gitlab.west.nga.ic.gov/acmesds/enums)
+# [ENUMS](https://github.com/totem-man/enums)
 
 Provides methods to clock, fetch, enumerate, stream, get, and regulate data.  Also makes connections
 to required services: mysql, neo4j, txmail, rxmail.
@@ -8,7 +8,7 @@ to required services: mysql, neo4j, txmail, rxmail.
 Clone **ENUMS** from one of its REPOs:
 
 	cd MYPROJECT
-	git clone REPO/totemstan/enums
+	git clone REPO/totem-man/enums
 
 To start and manage **ENUMS**:
 
@@ -27,17 +27,7 @@ Acquire and optionally configure **ENUMS** as follows:
 		"key.key.": value					// indexed append
 	});
 
-where its configuration keys (
-[WWW](http://totem.zapto.org/shares/prm/totem/index.html) 
-[COE](https://totem.west.ile.nga.ic.gov/shares/prm/totem/index.html) 
-[SBU](https://totem.nga.mil/shares/prm/totem/index.html)
-)
-follow the **ENUMS** deep copy conventions (
-[WWW](https://github.com/totemstan/enum) 
-[COE](https://sc.appdev.proj.coe/acmesds/enum) 
-[SBU](https://gitlab.west.nga.ic.gov/acmesds/enum)
-).
-See the Program Reference for examples.
+where configuration keys follow **ENUMS** [deep copy conventions](https://github.com/totem-man/enums## Program Reference)
 
 ## Program Reference
 <details>
@@ -763,31 +753,11 @@ epoch	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17
 ## Contacting, Contributing, Following
 
 Feel free to 
-* submit and status **TOTEM** issues (
-[WWW](http://totem.zapto.org/issues.view) 
-[COE](https://totem.west.ile.nga.ic.gov/issues.view) 
-[SBU](https://totem.nga.mil/issues.view)
-)  
-* contribute to **TOTEM** notebooks (
-[WWW](http://totem.zapto.org/shares/notebooks/) 
-[COE](https://totem.west.ile.nga.ic.gov/shares/notebooks/) 
-[SBU](https://totem.nga.mil/shares/notebooks/)
-)  
-* revise **TOTEM** requirements (
-[WWW](http://totem.zapto.org/reqts.view) 
-[COE](https://totem.west.ile.nga.ic.gov/reqts.view) 
-[SBU](https://totem.nga.mil/reqts.view), 
-)  
-* browse **TOTEM** holdings (
-[WWW](http://totem.zapto.org/) 
-[COE](https://totem.west.ile.nga.ic.gov/) 
-[SBU](https://totem.nga.mil/)
-)  
-* or follow **TOTEM** milestones (
-[WWW](http://totem.zapto.org/milestones.view) 
-[COE](https://totem.west.ile.nga.ic.gov/milestones.view) 
-[SBU](https://totem.nga.mil/milestones.view)
-).
+* submit and status [TOTEM issues](http://totem.hopto.org/issues.view) 
+* contribute to [TOTEM notebooks](http://totem.hopto.org/shares/notebooks/) 
+* revise [TOTEM requirements](http://totem.hopto.org/reqts.view) 
+* browse [TOTEM holdings](http://totem.hopto.org/) 
+* or follow [TOTEM milestones](http://totem.hopto.org/milestones.view) 
 
 ## License
 
