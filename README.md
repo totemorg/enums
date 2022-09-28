@@ -2,7 +2,7 @@
 
 Provides methods to clock, fetch, enumerate, stream, get, and regulate data.  Also makes connections
 to required services: mysql, neo4j, txmail, rxmail.
-
+ 
 ## Installation
 
 Clone **ENUMS** from one of its REPOs:
