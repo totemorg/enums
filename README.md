@@ -27,7 +27,7 @@ Acquire and optionally configure **ENUMS** as follows:
 		"key.key.": value					// indexed append
 	});
 
-where configuration keys follow **ENUMS** [deep copy conventions](https://github.com/totem-man/enums## Program Reference)
+where configuration keys follow [ENUMS deep copy conventions](https://github.com/totem-man/enums)
 
 ## Program Reference
 <details>
