@@ -3,14 +3,9 @@
 Provides methods to clock, fetch, enumerate, stream, get, and regulate data.  Also makes connections
 to required services: mysql, neo4j, txmail, rxmail.
  
-## Installation
+## Manage
 
-Install **ENUMS** using:
-
-	npm install @totemstan/enums
-
-To start and manage **ENUMS**:
-
+	npm install @totemstan/enums	# install
 	npm run start [ ? | $ | ...]	# Unit test
 	npm run verminor				# Roll minor version
 	npm run vermajor				# Roll major version
