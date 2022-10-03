@@ -5,10 +5,9 @@ to required services: mysql, neo4j, txmail, rxmail.
  
 ## Installation
 
-Clone **ENUMS** from one of its REPOs:
+Install **ENUMS** using:
 
-	cd MYPROJECT
-	git clone REPO/totem-man/enums
+	npm install @totemstan/enums
 
 To start and manage **ENUMS**:
 

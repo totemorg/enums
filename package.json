@@ -1,5 +1,5 @@
 {
-  "name": "enums",
+  "name": "@totemstan/enums",
   "version": "1.13.0",
   "description": "Basic enumerators",
   "main": "enums.js",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:totemstan/enums.git"
+    "url": "git+ssh://git@github.com/totemstan/enums.git"
   },
   "author": "ACME Software Disposal Service",
   "license": "ISC",
@@ -21,5 +21,13 @@
     "neo4j-driver": "^4.4.2",
     "nodemailer": "^6.7.2",
     "nodemailer-smtp-transport": "^2.7.4"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/totemstan/enums/issues"
+  },
+  "homepage": "https://github.com/totemstan/enums#readme",
+  "directories": {
+    "test": "test"
+  },
+  "devDependencies": {}
 }
