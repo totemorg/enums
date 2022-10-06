@@ -137,19 +137,13 @@ Start the command prompter for the hosting module with callback to initializer.
 */
 	Start: (host,cbs) => {
 		
+		cbs = cbs || (cmd => console.log(cmd));
+		
 		const
 			[x,mod,opt] = process.argv,
-			init = cbs ? cbs[opt] : null,
-			{ctx,res} = cbs || {},
-			VM = require("vm"),
-			def = cmd => console.log(`
-@example
-
-This:
-	${cmd}
-
-produces:
-`);
+			init = cbs[opt],
+			res = cbs.res || cbs,
+			VM = require("vm");
 		// console.log(process.argv, [opt, host, mod, CLUSTER.isMaster]);
 		
 		if ( CLUSTER.isMaster && mod.endsWith(host+".js") ) {
@@ -161,6 +155,8 @@ produces:
 					return;
 					
 				case "":
+					return;
+					
 				case "$":
 					break;
 					
@@ -172,35 +168,34 @@ produces:
 						Trace( `Invalid Start() option ${opt}` );
 			}
 			
-			if ( ctx || res )
-				require("repl").start({
-					eval: (cmd, CTX, filename, cb) => {
-						cmd = cmd.replace(/\n/g,"");
-						
-						if ( !cmd ) return;
-												
-						if ( cmd.startsWith("<") ) 
-							try {
-								cmd = FS.readFileSync("./"+cmd.substr(1),"utf-8");
-							}
+			require("repl").start({
+				eval: (cmd, CTX, filename, cb) => {
+					//console.log(CTX, filename);
 
-							catch (err) {
-								console.log("no such file", err);
-								cmd = "";
-							}
+					cmd = cmd.replace(/\n/g,"");
 
-						if ( ctx ) cb( null, VM.runInContext( cmd, VM.createContext(ctx) ) ); 
-						if ( res ) res(cmd);
-					},
-					prompt: "$> ", 
-					useGlobal: true	// seems to ignore - ctx always "global" but never truely *global*
-				});
-			
-			else
-				require("repl").start({
-					prompt: "$> ", 
-					useGlobal: true	
-				});
+					if ( !cmd ) 
+						return;
+
+					else
+					if ( cmd.startsWith("<") ) 
+						try {
+							res( FS.readFileSync("./"+cmd.substr(1),"utf-8") );
+						}
+
+						catch (err) {
+							console.log("no such file", err);
+						}
+
+					else
+						res(cmd);
+					
+					//cb( null, VM.runInContext( cmd, VM.createContext(ctx || CTX) ) ); 
+					//if ( res ) res(cmd);
+				},
+				prompt: "$> ", 
+				useGlobal: true	// seems to ignore - ctx always "global" but never truely *global*
+			});
 
 		}
 	},

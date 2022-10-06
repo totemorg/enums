@@ -15,13 +15,13 @@ to required services: mysql, neo4j, txmail, rxmail.
 
 Acquire and optionally configure **ENUMS** as follows:
 
-	const { Copy, Each, Extend, Stream, Fetch, ... } = require("enums").config({
+	const { Copy, Each, Extend, Stream, Fetch, ... } = require("@totemstan/enums").config({
 		key: value, 						// set key
 		"key.key": value, 					// indexed set
 		"key.key.": value					// indexed append
 	});
 
-where configuration keys follow [ENUMS deep copy conventions](https://github.com/totem-man/enums)
+where configuration keys follow [ENUMS deep copy conventions](https://github.com/totem-man/enums).
 
 ## Program Reference
 <details>
