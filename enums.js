@@ -137,66 +137,85 @@ Start the command prompter for the hosting module with callback to initializer.
 */
 	Start: (host,cbs) => {
 		
-		cbs = cbs || (cmd => console.log(cmd));
-		
 		const
 			[x,mod,opt] = process.argv,
-			init = cbs[opt],
-			res = cbs.res || cbs,
+			ctx = Copy( cbs || {}, {}),	
+			{help} = ctx,
+			res = ctx[opt],
 			VM = require("vm");
 		// console.log(process.argv, [opt, host, mod, CLUSTER.isMaster]);
 		
 		if ( CLUSTER.isMaster && mod.endsWith(host+".js") ) {
+			if ( res ) 
+				res();
 			
-			switch (opt || "") {
-				case "?": 
-					const opts = ["?","$"].concat(Object.keys(cbs||{})).join("|");
-					Trace( `Usage: node ${host} ${opts}` );
-					return;
-					
-				case "":
-					return;
-					
-				case "$":
-					break;
-					
-				default:
-					if (init)
-						init();
-					
-					else
-						Trace( `Invalid Start() option ${opt}` );
-			}
-			
-			require("repl").start({
-				eval: (cmd, CTX, filename, cb) => {
-					//console.log(CTX, filename);
+			else
+				switch (opt) {
+					case "?": 
+						const opts = ["?","$"].concat(Object.keys(ctx)).join("|");
+						Trace( `Usage: node ${host} ${opts}` );
+						break;
 
-					cmd = cmd.replace(/\n/g,"");
+					case "$":
+						require("repl").start({
+							eval: (cmd, CTX, filename, cb) => {
+								//console.log(CTX, filename);
 
-					if ( !cmd ) 
-						return;
+								cmd = cmd.replace(/\n/g,"");
 
-					else
-					if ( cmd.startsWith("<") ) 
-						try {
-							res( FS.readFileSync("./"+cmd.substr(1),"utf-8") );
-						}
+								if ( !cmd ) 
+									return;
 
-						catch (err) {
-							console.log("no such file", err);
-						}
+								else
+								if ( cmd.startsWith("<") ) 
+									try {
+										cbs( FS.readFileSync("./"+cmd.substr(1),"utf-8"), ctx );
+									}
 
-					else
-						res(cmd);
-					
-					//cb( null, VM.runInContext( cmd, VM.createContext(ctx || CTX) ) ); 
-					//if ( res ) res(cmd);
-				},
-				prompt: "$> ", 
-				useGlobal: true	// seems to ignore - ctx always "global" but never truely *global*
-			});
+									catch (err) {
+										console.log("no such file", err);
+									}
 
+								else
+								if ( cmd.startsWith("?") ) {
+									const 
+										n = cmd.substr(1);
+
+									if ( book = n.match( /(.*)\:\:(.*)/ ) ) {
+										const [nb,uc] = book;
+									}
+
+									else
+									if ( url = n.match( /(.*)\:(.*)/ ) ) {
+									}
+
+									else
+									if ( !n )
+										console.log(ctx);
+
+									else
+									if ( n in ctx )
+										console.log( ctx[n] );
+									
+									else
+									if (help)
+										Object.keys(help).forEach( open => {
+											if ( n in help[open] ) 
+												CP.exec( open.parse$({name: n}) );
+										});
+								}
+
+								else
+									cbs(cmd,ctx);
+
+								//cb( null, VM.runInContext( cmd, VM.createContext(ctx || CTX) ) ); 
+								//if ( res ) res(cmd);
+							},
+							prompt: "$> ", 
+							useGlobal: true	// seems to ignore - ctx always "global" but never truely *global*
+						});
+						break;
+				}
 		}
 	},
 	
@@ -2673,7 +2692,7 @@ async function LexisNexisTest(N,endpt,R,cb) {
 		});
 }
 
-Start("enums", {
+Start("enums", Copy({
 	"??": () => 
 		Trace("", JSON.stringify({
 			logins: {
@@ -2751,6 +2770,8 @@ Start("enums", {
 			else
 				console.log("final", args); 
 		})
-});
+}, (cmd,ctx) => {
+	VM.runInContext(cmd, VM.createContext(ctx));
+}));
 
 // UNCLASSIFIED
