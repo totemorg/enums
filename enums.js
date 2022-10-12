@@ -1672,6 +1672,7 @@ Copy({
 			//console.log("ext", proto.name, con);
 			con.prototype[proto.name] = proto;
 		});
+		//console.log(">>>>extend", con.prototype);
 	},
 	
 /**
@@ -2038,9 +2039,9 @@ REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type]
 	parsePath: function (query,index,flags,where) { 
 		const
 			regs = {
-				flags: /\_(.*?)(=)(.*)/,
+				flags: /^\_(.*?)(=)(.*)/,
 				index: /(.*?)(:=)(.*)/,
-				where: /(.*?)(<=|>=|\!=|\!bin=|\!exp=|\!nlp=)(.*)/,
+				where: /(.*?)(<=|>=|\!=|\_in=|\_out=)(.*)/,
 				other: /(.*?)(<|>|=)(.*)/,
 
 				area: /\/(.*?)\/(.*)/,
@@ -2051,12 +2052,12 @@ REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type]
 			[x1, area, rem] = pathname.match( regs.area ) || ["", "", pathname.substr(1)],
 			[x2, table, type] = rem ? rem.match( regs.file ) || ["", rem, rem.endsWith("/") ? "/" : "" ] : ["","","/"];
 
-		//Trace("parsepath", {search:search, area:area, table: table, type: type, rem: rem});
+		//console.log("parsepath", {search:search, area:area, table: table, type: type, rem: rem});
 
-		["=", "<", "<=", ">", ">=", "!=", "!bin=", "!exp=", "!nlp="]
+		["=", "<", "<=", ">", ">=", "!=", "_bin=", "_exp=", "_nlp=","_in=","_out="]
 		.forEach( key => where[key] = {} );
 
-		search.substr(1).split("&").forEach( parm => {
+		unescape(search).substr(1).split("&").forEach( parm => {
 			parm = parm
 			.replace( regs.flags, (str,lhs,op,rhs) => {
 				try {
@@ -2072,7 +2073,7 @@ REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type]
 				return "";
 			})
 			.replace( regs.where, (str,lhs,op,rhs) => {
-				where[op][lhs] = rhs;
+				(where[op] || {})[lhs] = rhs;
 				return "";
 			})
 			.replace( regs.other, (str,lhs,op,rhs) => {
@@ -2095,7 +2096,7 @@ REL = X OP X || X, X = KEY || KEY$[IDX] || KEY$.KEY and returns [path,file,type]
 				index[parm] = "";
 		});
 
-		// Trace("parse", query,index,flags,where);
+		//console.log("parse", [query,index,flags,where]);
 
 		return [pathname,table,type,area,url];
 	},
@@ -2661,7 +2662,10 @@ const
 		},
 
 		// callback cb(sql) with a sql connection
-		sqlThread: cb => {		
+		sqlThread: cb => {	
+			
+			//console.log("===========>thread", mysqlCon.constructor.prototype);
+			
 			if ( cb )
 				return mysqlCon ? cb( mysqlCon ) : null;
 
