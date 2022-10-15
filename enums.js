@@ -58,7 +58,7 @@ documented in accordance with [jsdoc]{@link https://jsdoc.app/}.
 	URL_LEXNEX = URL to lexis-nexis service w user/password credentials
 
 @module ENUMS
-@author [ACMESDS](https://totemstan.github.io)
+@author [ACMESDS](https://totemorg.github.io)
 
 @requires [os](https://nodejs.org/docs/latest/api/)
 @requires [cluster](https://nodejs.org/docs/latest/api/)
