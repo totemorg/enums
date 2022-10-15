@@ -1,6 +1,6 @@
 {
   "name": "@totemstan/enums",
-  "version": "1.18.0",
+  "version": "1.19.0",
   "description": "Basic enumerators",
   "main": "enums.js",
   "scripts": {
