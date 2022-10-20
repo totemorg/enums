@@ -1,6 +1,6 @@
 {
   "name": "@totemorg/enums",
-  "version": "1.21.0",
+  "version": "1.22.0",
   "description": "Provide basic enumerators",
   "main": "enums.js",
   "scripts": {
