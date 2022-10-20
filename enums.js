@@ -137,12 +137,18 @@ Start the command prompter for the hosting module with callback to initializer.
 */
 	Start: (host,cbs) => {
 		
+		cbs = cbs || {};
+		if ( !cbs.name ) cbs = Copy(cbs, (cmd,ctx) => {
+			VM.runInContext( cmd, ctx ); 
+		});
+		
 		const
+			VM = require("vm"),
 			[x,mod,opt] = process.argv,
-			ctx = Copy( cbs || {}, {}),	
+			ctx = VM.createContext( Copy( cbs, {} ) ),
 			{help} = ctx,
-			res = ctx[opt],
-			VM = require("vm");
+			res = ctx[opt];
+			  
 		// console.log(process.argv, [opt, host, mod, CLUSTER.isMaster]);
 		
 		if ( CLUSTER.isMaster && mod.endsWith(host+".js") ) {
@@ -208,7 +214,6 @@ Start the command prompter for the hosting module with callback to initializer.
 								else
 									cbs(cmd,ctx);
 
-								//cb( null, VM.runInContext( cmd, VM.createContext(ctx || CTX) ) ); 
 								//if ( res ) res(cmd);
 							},
 							prompt: "$> ", 
@@ -2551,7 +2556,7 @@ const
 	{mysqlCon, neo4jCon, txmailCon, rxmailCon} = Copy({
 		mysqlCon: mysqlLogin 
 					? MYSQL.createPool( Copy({
-						//host: mysqlLogin.host,
+						host: mysqlLogin.hostname,
 						user: mysqlLogin.username,
 						password: mysqlLogin.password,
 						//port: mysqlLogin.port
@@ -2572,7 +2577,7 @@ const
 					? new IMAP( Copy({
 						user: rxmailLogin.username,
 						password: rxmailLogin.password,
-						host: rxmailLogin.host,
+						host: rxmailLogin.hostname,
 						port: rxmailLogin.port
 					}, rxmailOpts) )
 		
@@ -2580,7 +2585,7 @@ const
 
 		txmailCon: txmailLogin 
 					? MAIL.createTransport({
-						host: txmailLogin.host,
+						host: txmailLogin.hostname,
 						port: txmailLogin.port,
 						auth: {
 							user: txmailLogin.username,
@@ -2590,7 +2595,7 @@ const
 
 					: {
 						sendMail: (opts, cb) => {
-							Trace(opts);   // -r "${opts.from}" 
+							Trace("email", opts);   // -r "${opts.from}" 
 			
 							if ( false ) //DEBE.watchMail
 								sqlThread( sql => {
@@ -2712,7 +2717,10 @@ Start("enums", Copy({
 				rxmail: rxmailCon ? true : false
 			}
 		})),
-	  
+	
+	EMT: () => 
+	 	ENUMS.txmailCon.sendMail({from: "noreply@totem.org", to: "brian.d.james@comcast.net", subject: "this is a test", body: "hello"}),
+	
 	ECOPY: () =>
 	  	Trace("", {
 			shallowCopy: Copy( {a:1,b:2}, {} ),
