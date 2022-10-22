@@ -138,7 +138,7 @@ Start the command prompter for the hosting module with callback to initializer.
 	Start: (host,cbs) => {
 		
 		cbs = cbs || {};
-		if ( !cbs.name ) cbs = Copy(cbs, (cmd,ctx) => {
+		if ( typeof cbs != "function" ) cbs = Copy(cbs, (cmd,ctx) => {
 			VM.runInContext( cmd, ctx ); 
 		});
 		
@@ -152,17 +152,17 @@ Start the command prompter for the hosting module with callback to initializer.
 		// console.log(process.argv, [opt, host, mod, CLUSTER.isMaster]);
 		
 		if ( CLUSTER.isMaster && mod.endsWith(host+".js") ) {
-			if ( res ) 
-				res();
+			if ( res ) res();
 			
-			else
-				switch (opt) {
-					case "?": 
-						const opts = ["?","$"].concat(Object.keys(ctx)).join("|");
-						Trace( `Usage: node ${host} ${opts}` );
-						break;
+			switch (opt) {
+				case "?": 
+					const opts = ["?","$"].concat(Object.keys(ctx)).join("|");
+					Trace( `Usage: node ${host} ${opts}` );
+					break;
 
-					case "$":
+				case "$":
+				default:
+					if ( typeof cbs == "function" )
 						require("repl").start({
 							eval: (cmd, CTX, filename, cb) => {
 								//console.log(CTX, filename);
@@ -173,6 +173,10 @@ Start the command prompter for the hosting module with callback to initializer.
 									return;
 
 								else
+								if ( cmd.startsWith("<exit") ) 
+									process.exit();
+								
+								else
 								if ( cmd.startsWith("<") ) 
 									try {
 										cbs( FS.readFileSync("./"+cmd.substr(1),"utf-8"), ctx );
@@ -182,6 +186,18 @@ Start the command prompter for the hosting module with callback to initializer.
 										console.log("no such file", err);
 									}
 
+								else
+								if ( cmd.startsWith("??") ) 
+									console.log(`
+??			this help
+?KEY		display contents of variable KEY
+?			display all variables
+?BOOK:CASE	blog notebook-usecase 
+?TOPIC		help on topic
+<FILE		embed script FILE
+<exit		exit 
+`);
+									
 								else
 								if ( cmd.startsWith("?") ) {
 									const 
@@ -202,7 +218,7 @@ Start the command prompter for the hosting module with callback to initializer.
 									else
 									if ( n in ctx )
 										console.log( ctx[n] );
-									
+
 									else
 									if (help)
 										Object.keys(help).forEach( open => {
@@ -211,16 +227,14 @@ Start the command prompter for the hosting module with callback to initializer.
 										});
 								}
 
-								else
+								else 
 									cbs(cmd,ctx);
-
-								//if ( res ) res(cmd);
 							},
 							prompt: "$> ", 
 							useGlobal: true	// seems to ignore - ctx always "global" but never truely *global*
 						});
-						break;
-				}
+					break;
+			}
 		}
 	},
 	
