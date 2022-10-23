@@ -5,8 +5,8 @@
   "main": "enums.js",
   "scripts": {
     "startdbs": "source ./maint.sh start_dbs",
-    "verminor": "npm version minor -f",
-    "vermajor": "npm version major -f",
+    "verminor": "npm version minor",
+    "vermajor": "npm version major",
     "start": "node enums.js ",
     "redoc": "jsdoc2md --template README.hbs --files enums.js >README.md; git commit -am 'redoc'; git  push agent master"
   },
