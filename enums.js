@@ -149,7 +149,7 @@ Start the command prompter for the hosting module with callback to initializer.
 			{help} = ctx,
 			res = ctx[opt];
 			  
-		// console.log(process.argv, [opt, host, mod, CLUSTER.isMaster]);
+		console.log(process.argv, [opt, host, mod, CLUSTER.isMaster]);
 		
 		if ( CLUSTER.isMaster && mod.endsWith(host+".js") ) {
 			if ( res ) res();
